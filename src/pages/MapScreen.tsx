@@ -140,6 +140,12 @@ const MapScreen: React.FC = () => {
   const [showGeofenceAlert, setShowGeofenceAlert] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const [geofenceAlerts, setGeofenceAlerts] = useState<Array<{id: string, member: string, timestamp: number}>>([]);
+  const [safeZones, setSafeZones] = useState([
+    { id: 'zone1', name: 'मुख्य घाट क्षेत्र', center: { lat: 23.1765, lng: 75.7884 }, radius: 500 },
+    { id: 'zone2', name: 'महाकाल मंदिर परिसर', center: { lat: 23.1825, lng: 75.7685 }, radius: 300 },
+  ]);
+  const [showRouteOptions, setShowRouteOptions] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userMarkerElRef = useRef<HTMLElement | null>(null);

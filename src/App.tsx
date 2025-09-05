@@ -11,7 +11,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import MapScreen from "./pages/MapScreen";
 import SOSScreen from "./pages/SOSScreen";
-import HelpdeskScreen from "./pages/HelpdeskScreen";
+import HelpdeskScreen from "./pages/EnhancedHelpdeskScreen";
 import ProfileScreen from "./pages/ProfileScreen";
 import SettingsScreen from "./pages/SettingsScreen";
 import NotificationsScreen from "./pages/NotificationsScreen";
