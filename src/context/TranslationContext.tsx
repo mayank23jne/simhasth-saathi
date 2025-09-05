@@ -39,6 +39,7 @@ const translations: Translations = {
   loginTitle: { en: 'Secure Login', hi: 'सुरक्षित लॉगिन', mr: 'सुरक्षित लॉगिन', sa: 'सुरक्षित लॉगिन' },
   loginSubtitle: { en: 'Enter your phone number to get started', hi: 'शुरू करने के लिए अपना फोन नंबर दर्ज करें', mr: 'सुरू करण्यासाठी फोन नंबर टाका', sa: 'शुरू करने के लिए अपना फोन नंबर दर्ज करें' },
   otpTitle: { en: 'Enter OTP', hi: 'OTP दर्ज करें', mr: 'OTP टाका', sa: 'OTP दर्ज करें' },
+  otpSubtitle: { en: 'Enter the OTP sent to {phoneNumber}', hi: '{phoneNumber} पर भेजा गया OTP दर्ज करें', mr: '{phoneNumber} वर पाठवलेला OTP टाका', sa: '{phoneNumber} पर भेजा गया OTP दर्ज करें' },
   otpLabel: { en: 'Enter OTP', hi: 'OTP दर्ज करें', mr: 'OTP टाका', sa: 'OTP दर्ज करें' },
   sendOtp: { en: 'Send OTP', hi: 'OTP भेजें', mr: 'OTP पाठवा', sa: 'OTP भेजें' },
   verifyOtp: { en: 'Verify & Continue', hi: 'सत्यापित करें और जारी रखें', mr: 'सत्यापित करा आणि पुढे जा', sa: 'सत्यापित करें और जारी रखें' },
