@@ -1,0 +1,320 @@
+@import "leaflet/dist/leaflet.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Simhasth Saathi Design System - Safety app for pilgrims
+Enhanced with beautiful gradients, animations, and modern aesthetics
+*/
+
+@layer base {
+  :root {
+    /* Enhanced Brand Colors */
+    --saffron: 30 100% 60%;           /* Primary saffron #FF9933 */
+    --saffron-light: 30 100% 85%;    /* Light saffron for backgrounds */
+    --saffron-dark: 30 100% 45%;     /* Dark saffron for text */
+    --saffron-glow: 30 100% 70%;     /* Glowing saffron for effects */
+    
+    --sky-blue: 197 71% 73%;         /* Sky blue #87CEEB */
+    --sky-blue-light: 197 71% 90%;   /* Light sky blue */
+    --sky-blue-dark: 197 71% 55%;    /* Dark sky blue */
+    --sky-blue-glow: 197 71% 80%;    /* Glowing sky blue */
+    
+    /* Enhanced Status Colors */
+    --safe-green: 120 60% 50%;       /* Safe status */
+    --safe-green-light: 120 60% 85%; /* Light green */
+    --warning-orange: 38 100% 50%;   /* Warning status */
+    --warning-orange-light: 38 100% 85%; /* Light orange */
+    --danger-red: 0 84% 60%;         /* SOS/Emergency */
+    --danger-red-light: 0 84% 85%;   /* Light red */
+    
+    /* Enhanced Neutral Colors */
+    --background: 0 0% 100%;         /* Pure white */
+    --background-subtle: 220 14% 98%; /* Very light blue-gray */
+    --foreground: 0 0% 15%;          /* Dark text for readability */
+    --muted-background: 30 20% 96%;  /* Very light saffron tint */
+    --muted-foreground: 0 0% 45%;    /* Medium gray text */
+    
+    /* Enhanced Component Colors */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+    --card-border: 30 20% 90%;       /* Subtle saffron border */
+    --card-hover: 30 20% 98%;        /* Card hover state */
+    
+    --primary: 30 100% 60%;          /* Saffron primary */
+    --primary-foreground: 0 0% 100%; /* White text on saffron */
+    --primary-hover: 30 100% 55%;    /* Darker saffron for hover */
+    
+    --secondary: 197 71% 73%;        /* Sky blue secondary */
+    --secondary-foreground: 0 0% 100%; /* White text on sky blue */
+    --secondary-hover: 197 71% 68%;   /* Darker sky blue for hover */
+    
+    --accent: 30 100% 85%;           /* Light saffron accent */
+    --accent-foreground: 30 100% 45%; /* Dark saffron text */
+    
+    --destructive: 0 84% 60%;        /* Red for destructive actions */
+    --destructive-foreground: 0 0% 100%;
+    
+    --success: 120 60% 50%;          /* Green for success */
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 100% 50%;          /* Orange for warnings */
+    --warning-foreground: 0 0% 100%;
+    
+    --border: 30 20% 90%;
+    --input: 30 20% 95%;
+    --ring: 30 100% 60%;
+    
+    /* Beautiful Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--saffron)) 0%, hsl(var(--saffron-glow)) 50%, hsl(var(--sky-blue)) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--sky-blue)) 0%, hsl(var(--sky-blue-glow)) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(var(--safe-green)) 0%, hsl(var(--safe-green-light)) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(var(--warning-orange)) 0%, hsl(var(--warning-orange-light)) 100%);
+    --gradient-danger: linear-gradient(135deg, hsl(var(--danger-red)) 0%, hsl(var(--danger-red-light)) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background-subtle)) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(var(--muted-background)) 100%);
+    
+    /* Enhanced Shadows with Color */
+    --shadow-soft: 0 2px 8px hsl(30 100% 60% / 0.08);
+    --shadow-medium: 0 4px 16px hsl(30 100% 60% / 0.12);
+    --shadow-strong: 0 8px 32px hsl(30 100% 60% / 0.16);
+    --shadow-elegant: 0 10px 30px -10px hsl(30 100% 60% / 0.25);
+    --shadow-glow: 0 0 40px hsl(var(--saffron-glow) / 0.3);
+    --shadow-success: 0 4px 16px hsl(var(--safe-green) / 0.15);
+    --shadow-warning: 0 4px 16px hsl(var(--warning-orange) / 0.15);
+    --shadow-danger: 0 4px 16px hsl(var(--danger-red) / 0.15);
+    
+    /* Enhanced Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    
+    /* Touch-friendly sizing */
+    --touch-target: 44px;            /* Minimum touch target size */
+    --button-height: 48px;           /* Optimized button height */
+    --nav-height: 70px;              /* Compact bottom navigation */
+    
+    /* Enhanced Border radius */
+    --radius: 12px;                  /* Consistent radius */
+    --radius-large: 16px;            /* Cards radius */
+    --radius-xl: 20px;               /* Large elements */
+    --radius-full: 9999px;           /* Fully rounded */
+    
+    /* Compact spacing system */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 20px;
+    --space-2xl: 24px;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Enhanced scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted-background));
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: var(--radius);
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
+
+/* Beautiful utility classes */
+@layer utilities {
+  /* Gradient backgrounds */
+  .bg-gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .bg-gradient-secondary {
+    background: var(--gradient-secondary);
+  }
+  
+  .bg-gradient-subtle {
+    background: var(--gradient-subtle);
+  }
+  
+  .bg-gradient-card {
+    background: var(--gradient-card);
+  }
+  
+  /* Enhanced shadows */
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+  
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .shadow-success {
+    box-shadow: var(--shadow-success);
+  }
+  
+  .shadow-warning {
+    box-shadow: var(--shadow-warning);
+  }
+  
+  .shadow-danger {
+    box-shadow: var(--shadow-danger);
+  }
+  
+  /* Smooth transitions */
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  
+  .transition-spring {
+    transition: var(--transition-spring);
+  }
+  
+  .transition-bounce {
+    transition: var(--transition-bounce);
+  }
+  
+  /* Interactive elements */
+  .hover-lift {
+    @apply transition-smooth hover:scale-105 hover:shadow-elegant;
+  }
+  
+  .hover-glow {
+    @apply transition-smooth hover:shadow-glow;
+  }
+  
+  .glass-effect {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+  
+  /* Status indicators */
+  .status-safe {
+    @apply bg-gradient-to-r from-green-500 to-green-400 text-white shadow-success;
+  }
+  
+  .status-warning {
+    @apply bg-gradient-to-r from-yellow-500 to-orange-400 text-white shadow-warning;
+  }
+  
+  .status-danger {
+    @apply bg-gradient-to-r from-red-500 to-red-400 text-white shadow-danger;
+  }
+  
+  /* Animation classes */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .animate-bounce-in {
+    animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+}
+
+/* Enhanced animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounceIn {
+  from {
+    opacity: 0;
+    transform: scale(0.3) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+#lovable-badge{
+    display: none !important;
+}
