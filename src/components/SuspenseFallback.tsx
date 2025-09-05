@@ -8,7 +8,7 @@ export const SuspenseFallback: React.FC = () => {
       <div className="relative w-full max-w-md">
         {/* Glow background accents */}
         <div className="pointer-events-none absolute -inset-8 blur-2xl opacity-40">
-          <div className="h-full w-full bg-[radial-gradient(circle_at_30%_30%,theme(colors.saffron.DEFAULT)/30%,transparent_50%),radial-gradient(circle_at_70%_60%,theme(colors.sky\-blue.DEFAULT)/25%,transparent_50%)]" />
+          <div className="h-full w-full bg-gradient-to-br from-saffron/30 via-transparent to-sky-blue/25" />
         </div>
 
         <div className="relative rounded-2xl border border-card-border/60 bg-card/70 backdrop-blur-md shadow-medium p-6 md:p-8 transition-transform duration-300 ease-out hover:scale-[1.01] cursor-pointer">
