@@ -113,10 +113,10 @@ const NotificationsScreen = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <div className="px-lg py-lg space-y-lg">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* <div className="flex items-center justify-between">
           <div className="flex items-center gap-md">
             <Button variant="ghost" size="sm" onClick={goBack}>
               <ArrowLeft className="h-4 w-4" />
@@ -134,7 +134,7 @@ const NotificationsScreen = () => {
               <span className="text-xs">सभी पढ़े</span>
             </Button>
           )}
-        </div>
+        </div> */}
 
         {/* Notifications List */}
         {notifications.length === 0 ? (

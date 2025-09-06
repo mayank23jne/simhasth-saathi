@@ -17,7 +17,6 @@ interface RouteConfig {
   rightIcon?: 'notifications' | 'profile' | null;
   showHeader: boolean;
   showBottomNav: boolean;
-  showNotificationBadge?: boolean;
 }
 
 export const IonicLayout: React.FC<IonicLayoutProps> = ({ children }) => {
@@ -32,7 +31,6 @@ export const IonicLayout: React.FC<IonicLayoutProps> = ({ children }) => {
       rightIcon: 'notifications',
       showHeader: true,
       showBottomNav: true,
-      showNotificationBadge: true
     },
     '/map': {
       title: t('groupStatus') || 'Group Status',
@@ -117,7 +115,6 @@ export const IonicLayout: React.FC<IonicLayoutProps> = ({ children }) => {
           rightIcon={currentRoute.rightIcon}
           onLeftClick={handleLeftClick}
           onRightClick={handleRightClick}
-          showNotificationBadge={currentRoute.showNotificationBadge}
         />
       )}
 

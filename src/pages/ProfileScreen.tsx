@@ -11,17 +11,22 @@ import { useTranslation } from '@/context/TranslationContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/appStore';
+import { QRScanner } from '@/components/QRScanner';
+import MyQRModal from '@/components/MyQRModal';
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [shareLocation, setShareLocation] = useState(true);
+  const [scannerMode, setScannerMode] = useState<'member' | 'lost_found' | 'general'>('member');
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [scanned, setScanned] = useState<null | { id: string; name: string; phone: string; groupCode: string }>(null);
+  const [scannedResult, setScannedResult] = useState<any>(null);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
   const members = useAppStore(s => s.members);
   const addMember = useAppStore(s => s.addMember);
   const removeMemberFromStore = useAppStore(s => s.removeMember);
   const clearMembers = useAppStore(s => s.clearMembers);
+  const userId = useAppStore(s => s.userId);
 
   const userProfile = useMemo(() => ({
     name: 'राम प्रकाश शर्मा',
@@ -52,21 +57,19 @@ const ProfileScreen = () => {
     navigator.clipboard.writeText(userProfile.groupId);
   }, [userProfile.groupId]);
 
-  const simulateScan = () => {
-    const pick = mockMembers[Math.floor(Math.random() * mockMembers.length)];
-    setScanned(pick);
-  };
-
-  const addScannedMember = () => {
-    if (!scanned) return;
-    const exists = members.some(m => m.id === scanned.id || (m.phone && scanned.phone && m.phone === scanned.phone));
-    if (exists) {
-      toast('Member already added');
-      return;
+  const handleScanResult = useCallback((result: any) => {
+    setScannedResult(result);
+    if (result.type === 'member') {
+      const exists = members.some(m => m.id === result.id || (m.phone && result.phone && m.phone === result.phone));
+      if (exists) {
+        toast('Member already added');
+        return;
+      }
+      addMember({ id: result.id, name: result.name, phone: result.phone, groupCode: result.groupCode });
+      toast.success('Member added');
     }
-    addMember({ id: scanned.id, name: scanned.name, phone: scanned.phone, groupCode: scanned.groupCode });
-    toast.success('Member added');
-  };
+    // For volunteer mode, future: show full info modal
+  }, [members, addMember]);
 
   const removeMember = (id: string) => {
     removeMemberFromStore(id);
@@ -98,9 +101,14 @@ const ProfileScreen = () => {
                   <StatusIndicator status="safe" size="sm" />
                 </div>
               </div>
-              <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                <Edit className="h-3 w-3" />
-              </Button>
+              <div className="flex flex-col gap-2 items-end">
+                <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                  <Edit className="h-3 w-3" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-8 w-8 p-0 mt-1" onClick={() => setQrModalOpen(true)} title="Show My QR">
+                  <QrCode className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-md">
@@ -119,9 +127,9 @@ const ProfileScreen = () => {
             </div>
 
             <div className="pt-md">
-              <Button onClick={() => setScannerOpen(true)} className="w-full h-10" size="sm">
+              <Button onClick={() => { setScannerMode('member'); setScannerOpen(true); }} className="w-full h-10" size="sm">
                 <QrCode className="h-4 w-4 mr-sm" />
-                Add Member
+                {t('addMember') || 'Add Member'}
               </Button>
             </div>
           </CardContent>
@@ -274,40 +282,38 @@ const ProfileScreen = () => {
           {t('logout')}
         </Button>
       </div>
-    <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Scan Member QR</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="mx-auto w-64 h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-primary">
-            <div className="text-center">
-              <Camera className="h-16 w-16 text-primary mx-auto mb-4" />
-              <p className="text-primary font-medium">Camera ready</p>
-              <p className="text-sm text-muted-foreground mt-1">Place QR inside the frame</p>
-            </div>
+    <QRScanner
+      isOpen={scannerOpen}
+      onClose={() => { setScannerOpen(false); setScannedResult(null); }}
+      onScanResult={handleScanResult}
+      mode={scannerMode}
+    />
+    {scannedResult && scannedResult.type === 'member' && (
+      <Dialog open={!!scannedResult} onOpenChange={() => setScannedResult(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('scannedMember') || 'Scanned Member'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div className="font-medium">{scannedResult.name}</div>
+            <div className="text-sm text-muted-foreground">{scannedResult.phone}</div>
+            <div className="text-xs">Group: {scannedResult.groupCode}</div>
+            <Button size="sm" onClick={() => setScannedResult(null)}>{t('close') || 'Close'}</Button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Button onClick={simulateScan}>Scan</Button>
-            <Button variant="outline" onClick={() => { setScannerOpen(false); setScanned(null); }}>Close</Button>
-          </div>
-
-          {scanned && (
-            <Card>
-              <CardContent className="p-4 space-y-1">
-                <div className="font-medium">{scanned.name}</div>
-                <div className="text-sm text-muted-foreground">{scanned.phone}</div>
-                <div className="text-xs">Group: {scanned.groupCode}</div>
-                <div className="pt-2 flex gap-2">
-                  <Button size="sm" onClick={addScannedMember}>Add to List</Button>
-                  <Button size="sm" variant="outline" onClick={simulateScan}>Scan Again</Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    )}
+    <MyQRModal
+      isOpen={qrModalOpen}
+      onClose={() => setQrModalOpen(false)}
+      user={{
+        id: userId || 'unknown',
+        name: userProfile.name,
+        groupCode: userProfile.groupId,
+        phone: userProfile.phone,
+        avatarUrl: undefined // or userProfile.avatarUrl if available
+      }}
+    />
     </div>
 
     {/* QR Scanner Modal */}

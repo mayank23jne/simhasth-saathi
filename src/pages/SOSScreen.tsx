@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useTranslation } from '@/context/TranslationContext';
 import { useAppStore } from '@/store/appStore';
+import HelpdeskScreen from './HelpdeskScreen';
 
 const SOSScreen = () => {
   const { t } = useTranslation();
@@ -226,7 +227,8 @@ const SOSScreen = () => {
         )}
 
         {/* Emergency Contacts */}
-        <div>
+        <HelpdeskScreen/>
+        {/* <div>
           <h3 className="text-base font-semibold mb-md">{t('quickContacts')}</h3>
           <div className="grid grid-cols-2 gap-md">
             <Button
@@ -252,7 +254,7 @@ const SOSScreen = () => {
               <span className="text-sm">{t('volunteers')}</span>
             </Button>
           </div>
-        </div>
+        </div> */}
 
         {/* Recent Alerts */}
         {sosAlerts.length > 0 && (

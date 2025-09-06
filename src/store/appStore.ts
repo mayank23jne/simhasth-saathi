@@ -28,6 +28,14 @@ export interface SosAlert {
 	responder?: string;
 }
 
+export interface Notification {
+	id: UniqueId;
+	message: string;
+	type: 'info' | 'warning' | 'error' | 'success';
+	timestamp: number;
+	isRead: boolean;
+}
+
 export interface LostFoundReport {
 	id: UniqueId;
 	name: string;
@@ -63,6 +71,7 @@ export interface AppState {
 	reports: LostFoundReport[];
 	qrScans: QrScanResult[];
 	mapMarkers: MapMarker[];
+	notifications: Notification[];
 
 	// Actions
 	setGroup: (groupCode: string | null) => void;
@@ -77,6 +86,10 @@ export interface AppState {
 	triggerSOS: () => SosAlert;
 	updateSOS: (id: UniqueId, update: Partial<SosAlert>) => void;
 	clearSOS: () => void;
+
+	addNotification: (message: string, type?: Notification['type']) => Notification;
+	markNotificationAsRead: (id: UniqueId) => void;
+	clearNotifications: () => void;
 
 	submitReport: (report: Omit<LostFoundReport, 'id' | 'createdAt'>) => LostFoundReport;
 	markFound: (id: UniqueId, found?: boolean) => void;
@@ -106,6 +119,7 @@ export const useAppStore = create<AppState>()(
 			reports: [],
 			qrScans: [],
 			mapMarkers: [],
+			notifications: [],
 
 			setGroup: (groupCode) => {
 				if (groupCode) localStorage.setItem('groupCode', groupCode); else localStorage.removeItem('groupCode');
@@ -162,6 +176,20 @@ export const useAppStore = create<AppState>()(
 			updateSOS: (id, update) => set((state) => ({ sosAlerts: state.sosAlerts.map(a => a.id === id ? { ...a, ...update } : a) })),
 			clearSOS: () => set({ sosAlerts: [] }),
 
+			addNotification: (message, type = 'info') => {
+				const notification: Notification = {
+					id: generateId('not'),
+					message,
+					type,
+					timestamp: Date.now(),
+					isRead: false,
+				};
+				set((state) => ({ notifications: [notification, ...state.notifications] }));
+				return notification;
+			},
+			markNotificationAsRead: (id) => set((state) => ({ notifications: state.notifications.map(n => n.id === id ? { ...n, isRead: true } : n) })),
+			clearNotifications: () => set({ notifications: [] }),
+
 			submitReport: (report) => {
 				const entry: LostFoundReport = { id: generateId('rep'), createdAt: Date.now(), found: false, ...report };
 				set((state) => ({ reports: [entry, ...state.reports] }));
@@ -191,6 +219,7 @@ export const useAppStore = create<AppState>()(
 				reports: state.reports,
 				qrScans: state.qrScans,
 				mapMarkers: state.mapMarkers,
+				notifications: state.notifications,
 			}),
 		}
 	)

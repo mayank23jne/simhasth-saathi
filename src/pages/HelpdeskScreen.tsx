@@ -299,10 +299,10 @@ const HelpdeskScreen = () => {
       {/* Tabs */}
       <div className="flex-1">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <TabsList className="grid grid-cols-2 mx-4 mt-4">
+          {/* <TabsList className="grid grid-cols-2 mx-4 mt-4">
             <TabsTrigger value="digital" className="text-sm">{t('digitalHelp')}</TabsTrigger>
             <TabsTrigger value="lost-found" className="text-sm">{t('lostFound')}</TabsTrigger>
-          </TabsList>
+          </TabsList> */}
 
           {/* Digital Helpdesk Tab */}
            <TabsContent value="digital" className="flex-1 p-4 space-y-4">
@@ -325,7 +325,7 @@ const HelpdeskScreen = () => {
               ))}
             </div>
 
-            <Card className="mt-6">
+            {/* <Card className="mt-6">
               <CardHeader>
                 <CardTitle className="text-lg">{t('emergencyNumbers')}</CardTitle>
               </CardHeader>
@@ -343,7 +343,7 @@ const HelpdeskScreen = () => {
                   <span className="font-mono text-primary">1800-123-4567</span>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </TabsContent>
 
           {/* Lost & Found Tab */}

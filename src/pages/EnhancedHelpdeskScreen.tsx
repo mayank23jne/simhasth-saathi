@@ -27,7 +27,7 @@ import { useTranslation } from '@/context/TranslationContext';
 import { useNavigate } from 'react-router-dom';
 import LostFoundSystem from '@/components/LostFoundSystem';
 import QRScanner from '@/components/QRScanner';
-import Header from './Header';
+import { IonicHeader } from '@/components/layout/ionic-header';
 
 interface HelpService {
   id: string;
@@ -264,11 +264,11 @@ const EnhancedHelpdeskScreen = () => {
 
   return (
     <>
-      <Header
+      <IonicHeader
         title={t('helpdeskTitle')}
         subtitle={t('helpdeskSubtitle')}
-        showNotifications
-        onNotificationClick={() => navigate('/notifications')}
+        rightIcon="notifications"
+        onRightClick={() => navigate('/notifications')}
       />
       
       <div className="min-h-screen bg-background pb-nav">

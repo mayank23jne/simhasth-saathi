@@ -3,6 +3,7 @@ import { Bell, Menu, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { useAppStore } from '@/store/appStore';
 
 interface IonicHeaderProps {
   title: string;
@@ -25,6 +26,8 @@ export const IonicHeader: React.FC<IonicHeaderProps> = ({
   className,
   showNotificationBadge = false
 }) => {
+  const unreadNotificationCount = useAppStore((state) => state.notifications.filter(n => !n.isRead).length);
+
   const renderLeftIcon = () => {
     if (!leftIcon) return <div className="w-10" />; // Spacer
     
@@ -53,7 +56,7 @@ export const IonicHeader: React.FC<IonicHeaderProps> = ({
         className="h-10 w-10 p-0 relative"
       >
         <Bell className="h-5 w-5 text-foreground" />
-        {showNotificationBadge && (
+        {showNotificationBadge && unreadNotificationCount > 0 && (
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}

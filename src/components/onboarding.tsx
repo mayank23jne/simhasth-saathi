@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LanguageSelector } from '@/components/ui/language-selector';
@@ -12,9 +13,14 @@ interface OnboardingProps {
 
 export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   const { language, setLanguage, t, tArray } = useTranslation();
+  const navigate = useNavigate();
 
   const handleNext = () => {
     onComplete(language); // context language is already updated
+  };
+
+  const handleAdminLogin = () => {
+    navigate('/admin/login');
   };
 
   return (
@@ -73,6 +79,16 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
           <span className="flex items-center justify-center gap-3 text-lg font-medium">
             {t('next')}
             <ArrowRight className="h-5 w-5" />
+          </span>
+        </Button>
+
+        <Button
+          onClick={handleAdminLogin}
+          size="lg"
+          className="w-full h-button bg-primary hover:bg-primary/90 text-primary-foreground shadow-medium mt-2"
+        >
+          <span className="flex items-center justify-center gap-3 text-lg font-medium">
+            Admin Login
           </span>
         </Button>
 
