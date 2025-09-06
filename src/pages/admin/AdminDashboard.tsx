@@ -197,7 +197,7 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <div className="text-2xl lg:text-3xl font-bold text-foreground leading-none">
-                            {stat.value}
+                          {parseFloat(stat.value.toString()).toFixed(2)}
                           </div>
                         </div>
                       </div>
@@ -264,12 +264,12 @@ export const AdminDashboard: React.FC = () => {
                   >
                     Lost & Found
                   </TabsTrigger>
-                  <TabsTrigger 
+                  {/* <TabsTrigger 
                     value="geofence"
                     className="text-xs lg:text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
                   >
                     Geo-Fence
-                  </TabsTrigger>
+                  </TabsTrigger> */}
                   <TabsTrigger 
                     value="analytics"
                     className="text-xs lg:text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
@@ -305,7 +305,8 @@ export const AdminDashboard: React.FC = () => {
                               <div className={`${item.color} w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform`}>
                                 <Icon className="h-6 w-6 text-white" />
                               </div>
-                              <div className="text-2xl font-bold text-foreground mb-1">{item.count}</div>
+                              <div className="text-2xl font-bold text-foreground mb-1"> {parseFloat(item.count.toString()).toFixed(2)}
+                              </div>
                               <div className="text-xs text-muted-foreground font-medium">{item.title}</div>
                             </CardContent>
                           </Card>
@@ -315,7 +316,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
 
                   {/* Main Content Grid */}
-                  <div className="grid lg:grid-cols-2 gap-6">
+                  <div className="">
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -323,13 +324,13 @@ export const AdminDashboard: React.FC = () => {
                     >
                       <SOSAlertsPanel />
                     </motion.div>
-                    <motion.div
+                    {/* <motion.div
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 }}
                     >
                       <GeoFenceAlerts />
-                    </motion.div>
+                    </motion.div> */}
                   </div>
                   
                   <motion.div

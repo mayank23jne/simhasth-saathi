@@ -81,7 +81,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <CardTitle className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              <CardTitle className="text-3xl font-bold bg-gradient-primary bg-clip-text text-white ">
                 Admin Dashboard
               </CardTitle>
               <CardDescription className="text-lg mt-2 text-foreground/70">

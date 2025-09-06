@@ -80,7 +80,7 @@ export const AdminHeader: React.FC = () => {
               <span className="text-white font-bold text-lg lg:text-xl">S</span>
             </div>
             <div className="hidden sm:block">
-              <h1 className="font-bold text-xl lg:text-2xl bg-gradient-primary bg-clip-text text-transparent">
+              <h1 className="font-bold text-xl lg:text-2xl bg-gradient-primary bg-clip-text text-transparent text-white">
                 Simhastha Saathi
               </h1>
               <p className="text-sm text-muted-foreground">Admin Control Center</p>
