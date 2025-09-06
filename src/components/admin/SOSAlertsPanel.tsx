@@ -129,55 +129,69 @@ export const SOSAlertsPanel: React.FC<SOSAlertsPanelProps> = ({ expanded = false
   };
 
   return (
-    <Card className={expanded ? 'h-full' : 'h-96'}>
-      <CardHeader className="pb-3">
+    <Card className={`${expanded ? 'h-full' : 'h-96'} border-2 border-red-100 shadow-danger hover:shadow-lg transition-shadow`}>
+      <CardHeader className="pb-3 bg-gradient-to-r from-red-50 to-orange-50 rounded-t-lg">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              SOS Alerts
+            <CardTitle className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">SOS Alerts</div>
+                <div className="text-sm text-muted-foreground">
+                  {filteredAlerts.filter(a => a.status === 'active').length} urgent · {filteredAlerts.length} total
+                </div>
+              </div>
             </CardTitle>
-            <CardDescription>
-              {filteredAlerts.length} active alerts requiring attention
-            </CardDescription>
           </div>
-          <Badge variant="destructive">
-            {alerts.filter(a => a.status === 'active').length} Active
-          </Badge>
+          <div className="flex flex-col items-end gap-2">
+            <Badge className="bg-red-500 text-white">
+              {alerts.filter(a => a.status === 'active').length} Active
+            </Badge>
+            {alerts.filter(a => a.status === 'active').length > 0 && (
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            )}
+          </div>
         </div>
         
         {expanded && (
-          <div className="flex gap-2 mt-4">
-            <div className="relative flex-1">
+          <div className="space-y-4 mt-4">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search alerts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-white border-gray-200"
               />
             </div>
-            <Button
-              variant={filter === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilter('all')}
-            >
-              All
-            </Button>
-            <Button
-              variant={filter === 'active' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilter('active')}
-            >
-              Active
-            </Button>
-            <Button
-              variant={filter === 'acknowledged' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilter('acknowledged')}
-            >
-              Acknowledged
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={filter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('all')}
+                className="text-xs"
+              >
+                All ({filteredAlerts.length})
+              </Button>
+              <Button
+                variant={filter === 'active' ? 'destructive' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('active')}
+                className="text-xs"
+              >
+                Active ({alerts.filter(a => a.status === 'active').length})
+              </Button>
+              <Button
+                variant={filter === 'acknowledged' ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('acknowledged')}
+                className="text-xs"
+              >
+                Acknowledged ({alerts.filter(a => a.status === 'acknowledged').length})
+              </Button>
+            </div>
           </div>
         )}
       </CardHeader>
@@ -185,14 +199,18 @@ export const SOSAlertsPanel: React.FC<SOSAlertsPanelProps> = ({ expanded = false
       <CardContent className="space-y-3 overflow-y-scroll h-72 ">
         <AnimatePresence>
           {filteredAlerts.slice(0, expanded ? filteredAlerts.length : 3).map((alert, index) => (
-            <motion.div
-              key={alert.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ delay: index * 0.1 }}
-              className="p-4 border rounded-lg space-y-3 hover:shadow-sm transition-shadow"
-            >
+              <motion.div
+                key={alert.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: index * 0.1 }}
+                className={`p-4 border-2 rounded-xl space-y-3 hover:shadow-sm transition-all duration-200 ${
+                  alert.status === 'active' ? 'border-red-200 bg-red-50/50' : 
+                  alert.status === 'acknowledged' ? 'border-yellow-200 bg-yellow-50/50' : 
+                  'border-gray-200 bg-gray-50/50'
+                }`}
+              >
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">

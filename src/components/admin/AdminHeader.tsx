@@ -20,6 +20,7 @@ export const AdminHeader: React.FC = () => {
   const [adminData, setAdminData] = useState<any>(null);
   const [notifications, setNotifications] = useState(3);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     // Get admin data from localStorage
@@ -35,9 +36,15 @@ export const AdminHeader: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
+    // Update time every minute
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      clearInterval(timeInterval);
     };
   }, []);
 
@@ -64,91 +71,116 @@ export const AdminHeader: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-card border-b border-card-border backdrop-blur-sm">
-      <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-        {/* Logo & Title */}
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">S</span>
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm">
+      <div className="container mx-auto px-4 lg:px-6">
+        <div className="flex items-center justify-between h-16 lg:h-20">
+          {/* Enhanced Logo & Title */}
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 lg:h-12 lg:w-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-lg lg:text-xl">S</span>
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="font-bold text-xl lg:text-2xl bg-gradient-primary bg-clip-text text-transparent">
+                Simhastha Saathi
+              </h1>
+              <p className="text-sm text-muted-foreground">Admin Control Center</p>
+            </div>
+            <div className="sm:hidden">
+              <h1 className="font-bold text-lg bg-gradient-primary bg-clip-text text-transparent">
+                Control Center
+              </h1>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-lg">Simhastha Saathi</h1>
-            <p className="text-xs text-muted-foreground">Admin Control Center</p>
-          </div>
-        </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          {/* Network Status */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleOfflineMode}
-            className="hidden sm:flex"
-          >
-            {isOnline ? (
-              <Wifi className="h-4 w-4 text-green-500" />
-            ) : (
-              <WifiOff className="h-4 w-4 text-red-500" />
-            )}
-          </Button>
+          {/* Enhanced Actions */}
+          <div className="flex items-center gap-2 lg:gap-4">
+            {/* Current Time - Desktop Only */}
+            <div className="hidden lg:flex flex-col items-end text-right">
+              <div className="text-sm font-semibold text-foreground">
+                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {currentTime.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+              </div>
+            </div>
 
-          {/* Language Selector */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <Globe className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent modal={false} className="bg-card shadow-md rounded-md max-h-60 overflow-y-auto z-50">
-              <DropdownMenuItem onClick={() => setLanguage('en')}>
-                English
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage('hi')}>
-                हिंदी
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            {/* Network Status */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleOfflineMode}
+              className="hidden md:flex"
+            >
+              {isOnline ? (
+                <Wifi className="h-4 w-4 text-green-500" />
+              ) : (
+                <WifiOff className="h-4 w-4 text-red-500" />
+              )}
+            </Button>
 
-          {/* Notifications */}
-          <Button variant="ghost" size="sm" className="relative">
-            <Bell className="h-4 w-4" />
-            {notifications > 0 && (
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0">
-                {notifications}
-              </Badge>
-            )}
-          </Button>
+            {/* Language Selector */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="hidden md:flex">
+                  <Globe className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent modal={false} className="bg-white shadow-lg rounded-xl border border-gray-200 max-h-60 overflow-y-auto z-50">
+                <DropdownMenuItem onClick={() => setLanguage('en')} className="hover:bg-gray-50">
+                  English
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage('hi')} className="hover:bg-gray-50">
+                  हिंदी
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                {adminData && (
-                  <div className="hidden sm:flex items-center gap-2">
-                    <span className="text-sm">{adminData.username}</span>
-                    <Badge 
-                      className={`${getRoleColor(adminData.role)} text-white text-xs`}
-                    >
-                      {adminData.role}
-                    </Badge>
+            {/* Notifications */}
+            <Button variant="ghost" size="sm" className="relative">
+              <Bell className="h-4 w-4" />
+              {notifications > 0 && (
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0 bg-red-500">
+                  {notifications}
+                </Badge>
+              )}
+            </Button>
+
+            {/* Enhanced User Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center gap-2 hover:bg-gray-50">
+                  <div className="h-8 w-8 bg-gradient-primary rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-white" />
                   </div>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent modal={false} className="bg-card shadow-md rounded-md max-h-60 overflow-y-auto z-50">
-              <DropdownMenuItem>
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  {adminData && (
+                    <div className="hidden lg:flex flex-col items-start">
+                      <span className="text-sm font-semibold">{adminData.username}</span>
+                      <Badge 
+                        className={`${getRoleColor(adminData.role)} text-white text-xs`}
+                      >
+                        {adminData.role}
+                      </Badge>
+                    </div>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent modal={false} className="bg-white shadow-lg rounded-xl border border-gray-200 max-h-60 overflow-y-auto z-50 min-w-[200px]">
+                <div className="p-3 border-b border-gray-100">
+                  <div className="font-semibold text-foreground">{adminData?.username}</div>
+                  <div className="text-sm text-muted-foreground">{adminData?.role}</div>
+                </div>
+                <DropdownMenuItem className="hover:bg-gray-50">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="hover:bg-gray-50 text-red-600">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>

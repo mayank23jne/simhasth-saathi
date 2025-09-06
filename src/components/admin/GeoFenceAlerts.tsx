@@ -139,21 +139,30 @@ export const GeoFenceAlerts: React.FC<GeoFenceAlertsProps> = ({ expanded = false
   };
 
   return (
-    <Card className={expanded ? 'h-full' : 'h-96'}>
-      <CardHeader className="pb-3">
+    <Card className={`${expanded ? 'h-full' : 'h-96'} border-2 border-orange-100 shadow-warning hover:shadow-lg transition-shadow`}>
+      <CardHeader className="pb-3 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-t-lg">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-orange-500" />
-              Geo-Fence Alerts
+            <CardTitle className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Shield className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-foreground">Geo-Fence Alerts</div>
+                <div className="text-sm text-muted-foreground">
+                  {alerts.filter(a => a.status === 'active').length} active breaches · {alerts.length} total
+                </div>
+              </div>
             </CardTitle>
-            <CardDescription>
-              {alerts.filter(a => a.status === 'active').length} active breaches detected
-            </CardDescription>
           </div>
-          <Badge variant="outline">
-            {alerts.length} Total
-          </Badge>
+          <div className="flex flex-col items-end gap-2">
+            <Badge className="bg-orange-500 text-white">
+              {alerts.length} Total
+            </Badge>
+            {alerts.filter(a => a.status === 'active').length > 0 && (
+              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+            )}
+          </div>
         </div>
       </CardHeader>
 

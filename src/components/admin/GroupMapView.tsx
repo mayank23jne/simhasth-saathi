@@ -118,17 +118,21 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
   };
 
   return (
-    <div className={`grid ${expanded ? 'grid-cols-1' : 'lg:grid-cols-3'} gap-6`}>
-      {/* Map Area */}
-      <Card className={expanded ? 'h-96' : 'lg:col-span-2 h-96'}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapIcon className="h-5 w-5 text-blue-500" />
-            Live Group Map
+    <div className={`grid ${expanded ? 'grid-cols-1 gap-6' : 'lg:grid-cols-3 gap-6'}`}>
+      {/* Enhanced Map Area */}
+      <Card className={`${expanded ? 'h-96' : 'lg:col-span-2 h-96'} border-2 border-blue-100 shadow-medium hover:shadow-lg transition-shadow`}>
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-sky-50 rounded-t-lg">
+          <CardTitle className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <MapIcon className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <div className="text-lg font-bold text-foreground">Live Group Map</div>
+              <div className="text-sm text-muted-foreground">
+                {groups.length} groups · {groups.reduce((sum, g) => sum + g.memberCount, 0)} pilgrims
+              </div>
+            </div>
           </CardTitle>
-          <CardDescription>
-            Real-time locations of all registered groups
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="w-full h-64 bg-gradient-to-br from-blue-50 to-green-50 rounded-lg flex items-center justify-center relative overflow-hidden">
@@ -167,16 +171,20 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
         </CardContent>
       </Card>
 
-      {/* Groups List */}
-      <Card className={expanded ? 'mt-6' : ''}>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-green-500" />
-            Groups
+      {/* Enhanced Groups List */}
+      <Card className={`${expanded ? 'mt-6' : ''} border-2 border-green-100 shadow-success hover:shadow-lg transition-shadow`}>
+        <CardHeader className="pb-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg">
+          <CardTitle className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Users className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <div className="text-lg font-bold text-foreground">Active Groups</div>
+              <div className="text-sm text-muted-foreground">
+                {filteredGroups.length} groups monitored
+              </div>
+            </div>
           </CardTitle>
-          <CardDescription>
-            {filteredGroups.length} active groups
-          </CardDescription>
           
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
