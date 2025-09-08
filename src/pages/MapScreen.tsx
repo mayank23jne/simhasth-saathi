@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
-import { Users, AlertCircle, Navigation, Locate, Info, MapPin } from 'lucide-react';
+import { Users, AlertCircle, Navigation, Locate, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusIndicator } from '@/components/ui/status-indicator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -23,33 +23,33 @@ function easeInOutQuad(t: number) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 function smoothMoveMarker(marker: L.Marker, to: LatLng, durationMs: number, animStateMap: Map<L.Marker, { raf?: number }>) {
-  // try {
-  //   const fromLatLng = marker.getLatLng();
-  //   const from = { lat: fromLatLng.lat, lng: fromLatLng.lng };
-  //   const start = performance.now();
-  //   const state = animStateMap.get(marker) || {};
-  //   if ((state as any).raf) cancelAnimationFrame((state as any).raf);
+  try {
+    const fromLatLng = marker.getLatLng();
+    const from = { lat: fromLatLng.lat, lng: fromLatLng.lng };
+    const start = performance.now();
+    const state = animStateMap.get(marker) || {};
+    if ((state as any).raf) cancelAnimationFrame((state as any).raf);
 
-  //   const step = (now: number) => {
-  //     const elapsed = Math.min(1, (now - start) / durationMs);
-  //     const t = easeInOutQuad(elapsed);
-  //     const lat = lerp(from.lat, to.lat, t);
-  //     const lng = lerp(from.lng, to.lng, t);
-  //     marker.setLatLng([lat, lng]);
+    const step = (now: number) => {
+      const elapsed = Math.min(1, (now - start) / durationMs);
+      const t = easeInOutQuad(elapsed);
+      const lat = lerp(from.lat, to.lat, t);
+      const lng = lerp(from.lng, to.lng, t);
+      marker.setLatLng([lat, lng]);
 
-  //     if (elapsed < 1) {
-  //       (state as any).raf = requestAnimationFrame(step);
-  //       animStateMap.set(marker, state as any);
-  //     } else {
-  //       animStateMap.delete(marker);
-  //     }
-  //   };
+      if (elapsed < 1) {
+        (state as any).raf = requestAnimationFrame(step);
+        animStateMap.set(marker, state as any);
+      } else {
+        animStateMap.delete(marker);
+      }
+    };
 
-  //   (state as any).raf = requestAnimationFrame(step);
-  //   animStateMap.set(marker, state as any);
-  // } catch {
-  //   marker.setLatLng([to.lat, to.lng]);
-  // }
+    (state as any).raf = requestAnimationFrame(step);
+    animStateMap.set(marker, state as any);
+  } catch {
+    marker.setLatLng([to.lat, to.lng]);
+  }
 }
 
 // Smooth animation for a marker along a given path
@@ -70,9 +70,8 @@ function smoothMoveMarkerAlongPath(
     return;
   }
 
-  // Slower-than-walking movement (~2 km/h) to reduce jittery feel on mobile
-  // const WALK_SPEED_MPS = 2 * 1000 / 3600; // meters per second
-  const WALK_SPEED_MPS = 0 * 1000 / 3600; // meters per second
+  // Use realistic walking speed (~5 km/h). Note: member movement may be globally disabled via DISABLE_MEMBER_MOVEMENT.
+  const WALK_SPEED_MPS = 5 * 1000 / 3600; // meters per second
 
   const state = animationState.current.get(memberId) || {
     currentPathIndex: 0,
@@ -156,9 +155,7 @@ const MapScreen: React.FC = () => {
   const prevHeadingRef = useRef<number>(0);
   const prevUserPosRef = useRef<LatLng | null>(null);
   const userAnimRefs = useRef<Map<L.Marker, { raf?: number }>>(new Map());
-  const routingControlRef = useRef<any>(null);
   const routePopupRef = useRef<L.Popup | null>(null);
-  const routeLineRef = useRef<L.Polyline | null>(null); // fallback straight line
   const routeUpdateDebounceRef = useRef<number | null>(null);
   const selectedMemberRef = useRef<any | null>(null);
   const lastFitForMemberIdRef = useRef<string | null>(null);
@@ -166,6 +163,10 @@ const MapScreen: React.FC = () => {
   const infoPanelRef = useRef<HTMLDivElement | null>(null);
   const infoButtonRef = useRef<HTMLButtonElement | null>(null);
   const memberAnimRefs = useRef<Map<L.Marker, { raf?: number }>>(new Map());
+  // Cache for directional icons to avoid recreating identical DOM repeatedly
+  const directionalIconCacheRef = useRef<Map<string, L.DivIcon>>(new Map());
+  // Track last icon key per member to avoid redundant setIcon
+  const memberIconKeyRef = useRef<Map<string, string>>(new Map());
 
   // New refs for robust routing
   const osrmRoutingControlRef = useRef<any>(null);
@@ -193,12 +194,7 @@ const MapScreen: React.FC = () => {
   const [geofenceVersion, setGeofenceVersion] = useState<number>(0);
   const [geofenceBreachMemberId, setGeofenceBreachMemberId] = useState<string | null>(null);
 
-  // Static help centers
-  const helpCenters = useMemo(() => ([
-    { id: 'hc1', name: 'Ramghat Help Center', lat: 23.1769, lng: 75.7889 },
-    { id: 'hc2', name: 'Mahakal Gate Help Center', lat: 23.1825, lng: 75.7685 },
-    { id: 'hc3', name: 'Kalideh Road Help Center', lat: 23.1992, lng: 75.7841 },
-  ]), []);
+  // Help centers were used for a button that's currently commented out. Keeping logic minimal below.
 
   const haversine = useCallback((a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
     const R = 6371000;
@@ -249,18 +245,7 @@ const MapScreen: React.FC = () => {
     }
   }, [haversine]);
 
-  const findNearestHelpCenter = useCallback((origin: { lat: number; lng: number }) => {
-    let best = helpCenters[0];
-    let bestDist = Number.POSITIVE_INFINITY;
-    for (const hc of helpCenters) {
-      const dist = haversine(origin, { lat: hc.lat, lng: hc.lng });
-      if (dist < bestDist) {
-        best = hc;
-        bestDist = dist;
-      }
-    }
-    return { center: best, distanceM: bestDist } as const;
-  }, [helpCenters, haversine]);
+  // Removed findNearestHelpCenter: not used because "Nearest Help Center" button is commented out.
 
   // Directional triangle icons (rotated by heading)
   const buildDirectionalIcon = useCallback((color: string, headingDeg?: number, highlight?: boolean) => {
@@ -276,6 +261,17 @@ const MapScreen: React.FC = () => {
       </div>`;
     return L.divIcon({ html, className: 'direction-icon', iconSize: [24, 24], iconAnchor: [12, 12] });
   }, []);
+
+  // Memoized accessor that caches icons by a stable key
+  const getDirectionalIcon = useCallback((color: string, headingDeg?: number, highlight?: boolean) => {
+    const rounded = typeof headingDeg === 'number' ? Math.round(headingDeg / 5) * 5 : 0; // round to 5° for cache hits
+    const key = `${color}|${rounded}|${highlight ? 1 : 0}`;
+    const hit = directionalIconCacheRef.current.get(key);
+    if (hit) return hit;
+    const icon = buildDirectionalIcon(color, rounded, highlight);
+    directionalIconCacheRef.current.set(key, icon);
+    return icon;
+  }, [buildDirectionalIcon]);
 
   // Smoothly animate rotation without recreating the icon to avoid flicker
   const animateHeadingRotation = useCallback((fromDeg: number, toDeg: number, durationMs: number) => {
@@ -351,7 +347,8 @@ const MapScreen: React.FC = () => {
   }, [setUserLocation]);
 const initializedRef = useRef(false);
 const DEFAULT_ZOOM = 16; // default zoom at initialization
-const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movement
+const DISABLE_MEMBER_MOVEMENT = false; // Enable smooth group member movement
+const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
   // Mount user marker and path once when both map and user location exist
   useEffect(() => {
@@ -381,6 +378,11 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
     }
     if (userPathRef.current) {
       userPathRef.current.addLatLng([userLocation.lat, userLocation.lng]);
+      // Cap the number of path points to avoid memory/render bloat
+      const latlngs = userPathRef.current.getLatLngs() as unknown as L.LatLng[];
+      if (Array.isArray(latlngs) && latlngs.length > USER_PATH_MAX_POINTS) {
+        userPathRef.current.setLatLngs(latlngs.slice(latlngs.length - USER_PATH_MAX_POINTS));
+      }
     }
 
     // initial setView with default zoom only once
@@ -496,7 +498,7 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
     }
   }, [members, userLocation]);
 
-  const handleMarkerClick = useCallback((member: any) => () => setSelectedMember(member), []);
+  // Removed handleMarkerClick: markers bind click handlers inline; this helper was unused.
 
   // Debounced helper to update routing control waypoints or fallback line
   const updateLiveRoute = useCallback((map: L.Map, userPos: L.LatLng, memberPos: L.LatLng, selectedMemberId: string) => {
@@ -642,7 +644,8 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
         isOutside = dist > radius;
       }
       const color = isOutside ? '#ef4444' : '#16a34a';
-      const icon = buildDirectionalIcon(color, m.headingDeg, isSelected);
+      const iconKey = `${color}|${typeof m.headingDeg === 'number' ? Math.round(m.headingDeg / 5) * 5 : 0}|${isSelected ? 1 : 0}`;
+      const icon = getDirectionalIcon(color, m.headingDeg, isSelected);
       const existing = cache.get(m.id);
 
       const memberPath = m.path && Array.isArray(m.path) && m.path.length > 1 ? m.path : null;
@@ -685,7 +688,11 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
             frozenMemberPosRef.current.set(m.id, frozen);
           }
           existing.setLatLng([frozen.lat, frozen.lng]);
-          existing.setIcon(icon);
+          const prevKey = memberIconKeyRef.current.get(m.id);
+          if (prevKey !== iconKey) {
+            existing.setIcon(icon);
+            memberIconKeyRef.current.set(m.id, iconKey);
+          }
         } else {
           // Prefer road-snapped segment if available; else use member path; else fallback to jitter-filtered step
           const snapped = memberRoadPathRef.current.get(m.id);
@@ -699,7 +706,11 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
             const target = dist < 6 ? { lat: current.lat, lng: current.lng } : m.position;
             smoothMoveMarker(existing, target as any, 900, memberAnimRefs.current);
           }
-          existing.setIcon(icon);
+          const prevKey = memberIconKeyRef.current.get(m.id);
+          if (prevKey !== iconKey) {
+            existing.setIcon(icon);
+            memberIconKeyRef.current.set(m.id, iconKey);
+          }
         }
       } else {
         const initialPosition = memberPath && memberPath.length > 0 ? memberPath[0] : m.position;
@@ -708,6 +719,7 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
           .bindTooltip(m.name, { permanent: true, direction: 'top', offset: L.point(0, -10) });
         newMarker.on('click', () => setSelectedMember(m));
         cache.set(m.id, newMarker);
+        memberIconKeyRef.current.set(m.id, iconKey);
         // Store frozen position upon creation
         if (!frozenMemberPosRef.current.has(m.id)) {
           frozenMemberPosRef.current.set(m.id, { lat: initialPosition.lat, lng: initialPosition.lng });
@@ -736,6 +748,82 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
       }
     }
   }, [members, buildDirectionalIcon, mapMode, haversine, geofenceVersion]);
+
+  // Unmount cleanup: cancel animations, remove controls/layers to prevent leaks
+  useEffect(() => {
+    return () => {
+      try {
+        if (routeUpdateDebounceRef.current) {
+          window.clearTimeout(routeUpdateDebounceRef.current);
+          routeUpdateDebounceRef.current = null;
+        }
+        // Cancel user marker animations
+        for (const state of userAnimRefs.current.values()) {
+          if ((state as any).raf) cancelAnimationFrame((state as any).raf);
+        }
+        userAnimRefs.current.clear();
+        // Cancel member path animations
+        for (const st of memberPathAnimStateRef.current.values()) {
+          if (st.raf) cancelAnimationFrame(st.raf);
+        }
+        memberPathAnimStateRef.current.clear();
+        const map = mapRef.current;
+        if (!map) return;
+        // Remove routing controls and fallbacks
+        if (osrmRoutingControlRef.current && (map as any).hasLayer && (map as any).hasLayer(osrmRoutingControlRef.current)) {
+          (map as any).removeControl(osrmRoutingControlRef.current);
+          osrmRoutingControlRef.current = null;
+        }
+        if (helpdeskRoutingControlRef.current && (map as any).hasLayer && (map as any).hasLayer(helpdeskRoutingControlRef.current)) {
+          (map as any).removeControl(helpdeskRoutingControlRef.current);
+          helpdeskRoutingControlRef.current = null;
+        }
+        if (fallbackRouteLineRef.current && map.hasLayer(fallbackRouteLineRef.current)) {
+          map.removeLayer(fallbackRouteLineRef.current);
+          fallbackRouteLineRef.current = null;
+        }
+        if (helpdeskPolylineRef.current && map.hasLayer(helpdeskPolylineRef.current)) {
+          map.removeLayer(helpdeskPolylineRef.current);
+          helpdeskPolylineRef.current = null;
+        }
+        if (routePopupRef.current) {
+          map.closePopup(routePopupRef.current);
+          routePopupRef.current = null;
+        }
+        if (fallbackRoutePopupRef.current) {
+          map.closePopup(fallbackRoutePopupRef.current);
+          fallbackRoutePopupRef.current = null;
+        }
+        if (helpdeskRoutePopupRef.current) {
+          map.closePopup(helpdeskRoutePopupRef.current);
+          helpdeskRoutePopupRef.current = null;
+        }
+        if (groupGeofenceCircleRef.current && map.hasLayer(groupGeofenceCircleRef.current)) {
+          map.removeLayer(groupGeofenceCircleRef.current);
+          groupGeofenceCircleRef.current = null;
+        }
+        if (userMarkerRef.current && map.hasLayer(userMarkerRef.current)) {
+          map.removeLayer(userMarkerRef.current);
+          userMarkerRef.current = null;
+        }
+        if (userPathRef.current && map.hasLayer(userPathRef.current)) {
+          map.removeLayer(userPathRef.current);
+          userPathRef.current = null;
+        }
+        if (helpdeskMarkerRef.current && map.hasLayer(helpdeskMarkerRef.current)) {
+          map.removeLayer(helpdeskMarkerRef.current);
+          helpdeskMarkerRef.current = null;
+        }
+        // Remove member markers
+        for (const [, marker] of memberMarkersRef.current.entries()) {
+          if (map.hasLayer(marker)) map.removeLayer(marker);
+        }
+        memberMarkersRef.current.clear();
+      } catch {
+        // ignore cleanup errors
+      }
+    };
+  }, []);
 
   // Clear selected member by clicking on the map background
   useEffect(() => {
@@ -1189,15 +1277,7 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
     }
   }, [userLocation, mapMode, helpdeskTarget]);
 
-  const handleNearestHelpdesk = useCallback(() => {
-    const origin = userLocation || (members.find((m: any) => m.isSelf)?.position ?? null);
-    if (!origin) {
-      toast.error('Location not available');
-      return;
-    }
-    const { center } = findNearestHelpCenter(origin);
-    setMapMode('helpdesk', { id: center.id, name: center.name, lat: center.lat, lng: center.lng });
-  }, [userLocation, members, findNearestHelpCenter, setMapMode]);
+  // Removed handleNearestHelpdesk: corresponding UI is commented; avoiding dead code.
 
   // Focus/zoom to latest breaching member and highlight
   const handleViewGeofenceBreach = useCallback(() => {
@@ -1310,7 +1390,7 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
           markerZoomAnimation={true}
           touchZoom={true}
           tapTolerance={15}
-          whenReady={() => { /* assigned in ref below */ }}
+          // whenReady is not used; ref below captures the instance
           ref={(instance) => {
             if (instance) {
               // @ts-ignore
@@ -1330,10 +1410,7 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
             <Navigation className="h-5 w-5 mr-2" />
             {t('focusOnGroup')}
           </Button>
-          {/* <Button variant="default" className="flex-1 h-12" onClick={handleNearestHelpdesk}>
-            <MapPin className="h-5 w-5 mr-2" />
-            {t('nearestHelpCenter')}
-          </Button> */}
+          
           <div className="relative">
             <Button
               ref={infoButtonRef as any}
@@ -1404,9 +1481,7 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
               </div>
             )}
           </div>
-          {/* <Button variant="outline" className="h-12 px-4" onClick={() => setShowGeofenceAlert(true)}>
-            <AlertCircle className="h-5 w-5" />
-          </Button> */}
+          
         </div>
       </div>
   </>
