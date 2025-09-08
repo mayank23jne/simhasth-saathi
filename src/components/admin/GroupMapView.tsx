@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { MapPin, Users, Search, Eye, MapIcon, Navigation } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import { useAdminStore } from '@/store/adminStore';
 
 // CORE FEATURE: Group-based live location tracking for religious gatherings
 // Essential for coordinated safety management in large events like Simhastha 2028
@@ -33,75 +36,49 @@ interface GroupMapViewProps {
 }
 
 export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) => {
+  const groupsFromStore = useAdminStore(s => s.groups);
   const [groups, setGroups] = useState<Group[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
 
-  useEffect(() => {
-    // SIMHASTHA CONTEXT: Realistic group data for religious pilgrimage tracking
-    const dummyGroups: Group[] = [
-      {
-        id: 'grp_001',
-        code: 'SMST-2024-001', // Simhastha-specific group codes
-        name: 'Delhi Pilgrims - Haridwar Yatra',
-        memberCount: 25,
-        leader: 'Priya Sharma',
-        location: 'Har Ki Pauri',
-        coordinates: [29.9457, 78.1642],
-        lastUpdate: Date.now() - 120000,
-        status: 'active',
-        members: [
-          { name: 'Priya Sharma', phone: '+91 98765 43210', status: 'safe' },
-          { name: 'Raj Kumar', phone: '+91 98765 43211', status: 'safe' },
-          { name: 'Sunita Devi', phone: '+91 98765 43212', status: 'missing', lastSeen: Date.now() - 1800000 },
-        ],
-        qrCode: 'SMST-QR-001',
-        emergencyContact: '+91 98765 43210'
-      },
-      {
-        id: 'grp_002',
-        code: 'SMST-2024-015',
-        name: 'Mumbai Family Group',
-        memberCount: 12,
-        leader: 'Rajesh Kumar',
-        location: 'Mansa Devi Temple',
-        coordinates: [29.9457, 78.1642],
-        lastUpdate: Date.now() - 300000,
-        status: 'emergency', // Medical emergency case
-        members: [
-          { name: 'Rajesh Kumar', phone: '+91 87654 32109', status: 'emergency' },
-          { name: 'Meera Kumar', phone: '+91 87654 32110', status: 'safe' },
-        ],
-        qrCode: 'SMST-QR-015',
-        emergencyContact: '+91 87654 32109'
-      },
-      {
-        id: 'grp_003',
-        code: 'SMST-2024-007',
-        name: 'Gujarat Yatra Group',
-        memberCount: 35,
-        leader: 'Anita Devi',
-        location: 'Ganga Aarti Ghat',
-        coordinates: [29.9457, 78.1642],
-        lastUpdate: Date.now() - 60000,
-        status: 'active',
-        members: [
-          { name: 'Anita Devi', phone: '+91 76543 21098', status: 'safe' },
-          { name: 'Bharat Patel', phone: '+91 76543 21099', status: 'safe' },
-        ],
-        qrCode: 'SMST-QR-007',
-        emergencyContact: '+91 76543 21098'
-      }
-    ];
+  // Fix default marker icons in bundlers
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  });
 
-    setGroups(dummyGroups);
-  }, []);
+  useEffect(() => {
+    // Adapt store shape to local Group interface (adds members list for UI if needed)
+    const adapted: Group[] = groupsFromStore.map(g => ({
+      id: g.id,
+      code: g.code,
+      name: g.name,
+      memberCount: g.memberCount,
+      leader: g.leader,
+      location: g.location,
+      coordinates: g.coordinates,
+      lastUpdate: g.lastUpdate,
+      status: g.status,
+      members: [],
+      qrCode: g.code,
+      emergencyContact: ''
+    }));
+    setGroups(adapted);
+  }, [groupsFromStore]);
 
   const filteredGroups = groups.filter(group => 
     group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     group.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     group.leader.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const allBounds = useMemo(() => {
+    if (filteredGroups.length === 0) return null as L.LatLngBounds | null;
+    const b = L.latLngBounds(filteredGroups.map(g => L.latLng(g.coordinates[0], g.coordinates[1])));
+    return b;
+  }, [filteredGroups]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -128,9 +105,37 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
     return `${minutes} mins ago`;
   };
 
+  // Helper component to fit bounds when groups change or when a group is selected
+  const FitBoundsOnData: React.FC = () => {
+    const map = useMap();
+    useEffect(() => {
+      if (selectedGroup) {
+        map.flyTo(
+          L.latLng(selectedGroup.coordinates[0], selectedGroup.coordinates[1]),
+          Math.max(map.getZoom(), 15),
+        );
+        return;
+      }
+      if (allBounds) {
+        map.fitBounds(allBounds.pad(0.2));
+      }
+    }, [map, allBounds, selectedGroup]);
+    return null;
+  };
+
+  // Build a simple div icon with member count and status color
+  const buildGroupIcon = (group: Group) => {
+    const color = group.status === 'active' ? '#10b981' : group.status === 'emergency' ? '#ef4444' : '#6b7280';
+    const html = `
+      <div style="position:relative;">
+        <div style="width:34px;height:34px;border-radius:9999px;background:${color};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,0.25),0 1px 3px rgba(0,0,0,0.2);border:2px solid white;">${group.memberCount}</div>
+      </div>`;
+    return L.divIcon({ html, className: 'group-count-icon', iconSize: [34, 34], iconAnchor: [17, 17] });
+  };
+
   return (
     <div className={`grid ${expanded ? 'grid-cols-1 gap-6' : 'lg:grid-cols-3 gap-6'}`}>
-      {/* Enhanced Map Area */}
+      {/* Map Area (Leaflet) */}
       <Card className={`${expanded ? 'h-96' : 'lg:col-span-2 h-96'} border-2 border-blue-100 shadow-medium hover:shadow-lg transition-shadow`}>
         <CardHeader className="bg-gradient-to-r from-blue-50 to-sky-50 rounded-t-lg">
           <CardTitle className="flex items-center gap-3">
@@ -146,38 +151,40 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="w-full h-64 bg-gradient-to-br from-blue-50 to-green-50 rounded-lg flex items-center justify-center relative overflow-hidden">
-            {/* Simulated Map */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-100/50 to-green-100/50"></div>
-            
-            {/* Group Pins */}
-            {groups.map((group, index) => (
-              <motion.div
+          <div className="w-full h-64 rounded-lg overflow-hidden relative">
+            <MapContainer
+              center={[23.1765, 75.7884]}
+              zoom={13}
+              className="h-full w-full"
+              preferCanvas
+              wheelDebounceTime={35}
+              wheelPxPerZoomLevel={80}
+              zoomAnimation
+              markerZoomAnimation
+              touchZoom
+              tapTolerance={15}
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <FitBoundsOnData />
+              {filteredGroups.map((group) => (
+                <Marker
                 key={group.id}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: index * 0.2 }}
-                className={`absolute cursor-pointer group`}
-                style={{ 
-                  left: `${20 + index * 25}%`, 
-                  top: `${30 + (index % 2) * 30}%` 
-                }}
-                onClick={() => setSelectedGroup(group)}
-              >
-                <div className={`w-8 h-8 rounded-full ${getStatusColor(group.status)} flex items-center justify-center text-white text-xs font-bold shadow-lg group-hover:scale-110 transition-transform`}>
-                  {group.memberCount}
+                  position={[group.coordinates[0], group.coordinates[1]]}
+                  icon={buildGroupIcon(group)}
+                  eventHandlers={{ click: () => setSelectedGroup(group) }}
+                >
+                  <Popup>
+                    <div className="space-y-1">
+                      <div className="font-semibold">{group.name}</div>
+                      <div className="text-xs text-muted-foreground">{group.code}</div>
+                      <div className="text-xs">Members: {group.memberCount}</div>
+                      <div className="text-xs">Leader: {group.leader}</div>
+                      <div className="text-xs">Updated: {formatTimeAgo(group.lastUpdate)}</div>
                 </div>
-                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-white px-2 py-1 rounded shadow-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                  {group.name}
-                </div>
-              </motion.div>
-            ))}
-
-            <div className="text-center text-muted-foreground">
-              <MapPin className="h-12 w-12 mx-auto mb-2 opacity-20" />
-              <p className="text-sm">Interactive map with group locations</p>
-              <p className="text-xs">Click on pins to view group details</p>
-            </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
           </div>
         </CardContent>
       </Card>

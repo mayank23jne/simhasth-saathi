@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Users, AlertTriangle, Clock, Download, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAdminStore } from '@/store/adminStore';
 
 interface AnalyticsData {
   hourlyAlerts: Array<{ hour: string; alerts: number; resolved: number }>;
@@ -14,6 +15,9 @@ interface AnalyticsData {
 }
 
 export const AnalyticsSection: React.FC = () => {
+  const groups = useAdminStore(s => s.groups);
+  const sos = useAdminStore(s => s.sosAlerts);
+  const crowd = useAdminStore(s => s.crowdAlerts);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('24h');
   const [data, setData] = useState<AnalyticsData>({
     hourlyAlerts: [],
@@ -27,39 +31,46 @@ export const AnalyticsSection: React.FC = () => {
     const generateData = () => {
       const hourlyAlerts = Array.from({ length: 24 }, (_, i) => ({
         hour: `${i.toString().padStart(2, '0')}:00`,
-        alerts: Math.floor(Math.random() * 20) + 5,
-        resolved: Math.floor(Math.random() * 15) + 3
+        alerts: Math.floor(Math.random() * 6) + (sos.length % 5),
+        resolved: Math.floor(Math.random() * 5) + Math.min(sos.length, 4)
       }));
 
-      const groupStats = [
-        { zone: 'Har Ki Pauri', groups: 25, members: 450 },
-        { zone: 'Mansa Devi', groups: 18, members: 320 },
-        { zone: 'Chandi Devi', groups: 12, members: 280 },
-        { zone: 'Daksh Mahadev', groups: 8, members: 150 },
-        { zone: 'Maya Devi', groups: 15, members: 200 }
-      ];
+      // Derive Ujjain zones from group locations
+      const zoneMap = new Map<string, { groups: number; members: number }>();
+      groups.forEach(g => {
+        const zone = g.location;
+        const entry = zoneMap.get(zone) || { groups: 0, members: 0 };
+        entry.groups += 1;
+        entry.members += g.memberCount;
+        zoneMap.set(zone, entry);
+      });
+      const groupStats = Array.from(zoneMap.entries()).map(([zone, v]) => ({ zone, groups: v.groups, members: v.members }));
 
       const responseTime = Array.from({ length: 7 }, (_, i) => ({
         date: new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        avgTime: Math.floor(Math.random() * 10) + 3
+        avgTime: Math.max(3, 8 - Math.min(4, Math.floor(sos.length / 2)))
       }));
 
+      const typeCounts: Record<string, number> = {};
+      sos.forEach(a => {
+        typeCounts[a.emergencyType] = (typeCounts[a.emergencyType] || 0) + 1;
+      });
       const alertTypes = [
-        { type: 'Medical Emergency', count: 45, color: '#ef4444' },
-        { type: 'Lost Person', count: 78, color: '#f59e0b' },
-        { type: 'Crowd Control', count: 32, color: '#3b82f6' },
-        { type: 'Security', count: 23, color: '#8b5cf6' },
-        { type: 'Other', count: 19, color: '#10b981' }
-      ];
+        { type: 'medical', color: '#ef4444' },
+        { type: 'lost_person', color: '#f59e0b' },
+        { type: 'crowd_control', color: '#3b82f6' },
+        { type: 'security', color: '#8b5cf6' },
+        { type: 'other', color: '#10b981' },
+      ].map(item => ({ type: item.type, count: typeCounts[item.type] || 0, color: item.color }));
 
       setData({ hourlyAlerts, groupStats, responseTime, alertTypes });
     };
 
     generateData();
-    const interval = setInterval(generateData, 30000); // Update every 30 seconds
+    const interval = setInterval(generateData, 30000);
 
     return () => clearInterval(interval);
-  }, [timeRange]);
+  }, [timeRange, groups, sos]);
 
   const totalAlerts = data.hourlyAlerts.reduce((sum, item) => sum + item.alerts, 0);
   const totalResolved = data.hourlyAlerts.reduce((sum, item) => sum + item.resolved, 0);

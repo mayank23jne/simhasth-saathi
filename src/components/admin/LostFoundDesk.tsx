@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Search, Plus, QrCode, User, Clock, MapPin, Phone, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { useAdminStore } from '@/store/adminStore';
 
 // CORE SAFETY FEATURE: Digital Lost & Found Helpdesk with QR code integration
 // Essential for large religious gatherings like Simhastha 2028 as per project requirements
@@ -29,7 +30,9 @@ interface LostFoundReport {
 }
 
 export const LostFoundDesk: React.FC = () => {
-  const [reports, setReports] = useState<LostFoundReport[]>([]);
+  const reports = useAdminStore(s => s.lostFound) as unknown as LostFoundReport[];
+  const addLostFoundReport = useAdminStore(s => s.addLostFoundReport);
+  const resolveLostFound = useAdminStore(s => s.resolveLostFound);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'lost' | 'found'>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -43,56 +46,9 @@ export const LostFoundDesk: React.FC = () => {
     reporterPhone: ''
   });
 
-  useEffect(() => {
-    // Load dummy lost & found data
-    const dummyReports: LostFoundReport[] = [
-      {
-        id: 'lf_001',
-        type: 'lost',
-        name: 'Arjun Kumar',
-        age: 8,
-        description: 'Boy wearing blue shirt and black shorts, has a small mole on left cheek',
-        lastSeen: 'Near Har Ki Pauri main entrance',
-        reporterName: 'Priya Sharma',
-        reporterPhone: '+91 98765 43210',
-        timestamp: Date.now() - 1800000, // 30 minutes ago
-        status: 'active',
-        qrCode: 'QR-LF-001',
-        priority: 'high', // Child missing - highest priority
-        groupCode: 'SMST-2024-001'
-      },
-      {
-        id: 'lf_002',
-        type: 'found',
-        name: 'Elderly Woman',
-        age: 65,
-        description: 'Wearing white saree, speaks Hindi, appears confused',
-        lastSeen: 'Mansa Devi Temple',
-        reporterName: 'Volunteer Team A',
-        reporterPhone: '+91 87654 32109',
-        timestamp: Date.now() - 900000, // 15 minutes ago
-        status: 'active',
-        qrCode: 'QR-LF-002',
-        priority: 'high' // Elderly person - high priority
-      },
-      {
-        id: 'lf_003',
-        type: 'lost',
-        name: 'Handbag with documents',
-        description: 'Brown leather handbag containing Aadhar card and train tickets',
-        lastSeen: 'Ganga Aarti area',
-        reporterName: 'Sunita Devi',
-        reporterPhone: '+91 76543 21098',
-        timestamp: Date.now() - 3600000, // 1 hour ago
-        status: 'resolved',
-        priority: 'low' // Material item - lower priority
-      }
-    ];
+  // Data now comes from store
 
-    setReports(dummyReports);
-  }, []);
-
-  const filteredReports = reports.filter(report => {
+  const filteredReports = useMemo(() => reports.filter(report => {
     const matchesSearch = report.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          report.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          report.lastSeen.toLowerCase().includes(searchTerm.toLowerCase());
@@ -100,7 +56,7 @@ export const LostFoundDesk: React.FC = () => {
     const matchesFilter = filter === 'all' || report.type === filter;
     
     return matchesSearch && matchesFilter;
-  });
+  }), [reports, searchTerm, filter]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +77,7 @@ export const LostFoundDesk: React.FC = () => {
                 (formData.age && parseInt(formData.age) > 60) ? 'high' : 'medium'
     };
 
-    setReports(prev => [newReport, ...prev]);
+    addLostFoundReport(newReport as any);
     setFormData({
       type: 'lost',
       name: '',
@@ -136,11 +92,7 @@ export const LostFoundDesk: React.FC = () => {
   };
 
   const handleResolve = (reportId: string) => {
-    setReports(prev => prev.map(report => 
-      report.id === reportId 
-        ? { ...report, status: 'resolved' as const }
-        : report
-    ));
+    resolveLostFound(reportId);
     toast.success('Report marked as resolved');
   };
 

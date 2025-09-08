@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, AlertTriangle, Clock, MapPin, TrendingUp, Eye, Navigation } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { useAdminStore } from '@/store/adminStore';
 
 // CORE SAFETY FEATURE: Crowded Area Alerts for large religious gatherings
 // Aligned with project requirements for safety monitoring in religious events like Simhastha 2028
@@ -12,7 +13,7 @@ interface CrowdAlert {
   id: string;
   location: string;
   coordinates: [number, number];
-  currentDensity: number; // people per sq meter
+  currentDensity: number;
   capacity: number;
   riskLevel: 'low' | 'medium' | 'high' | 'critical';
   timestamp: number;
@@ -26,72 +27,11 @@ interface CrowdedAreaAlertsProps {
 }
 
 export const CrowdedAreaAlerts: React.FC<CrowdedAreaAlertsProps> = ({ expanded = false }) => {
-  const [alerts, setAlerts] = useState<CrowdAlert[]>([]);
-
-  useEffect(() => {
-    // SIMHASTHA CONTEXT: Key areas that require crowd monitoring during religious gatherings
-    const dummyCrowdAlerts: CrowdAlert[] = [
-      {
-        id: 'crowd_001',
-        location: 'Har Ki Pauri Main Ghat',
-        coordinates: [29.9457, 78.1642],
-        currentDensity: 8.5, // Critical crowd density
-        capacity: 5000,
-        riskLevel: 'critical',
-        timestamp: Date.now() - 180000,
-        estimatedPeople: 4200,
-        status: 'action_required',
-        recommendedAction: 'Immediate crowd control required - Deploy additional volunteers'
-      },
-      {
-        id: 'crowd_002', 
-        location: 'Mansa Devi Temple Approach',
-        coordinates: [29.9457, 78.1642],
-        currentDensity: 6.2,
-        capacity: 3000,
-        riskLevel: 'high',
-        timestamp: Date.now() - 300000,
-        estimatedPeople: 1860,
-        status: 'monitoring',
-        recommendedAction: 'Monitor closely - Consider alternate route guidance'
-      },
-      {
-        id: 'crowd_003',
-        location: 'Main Aarti Viewing Area',
-        coordinates: [29.9457, 78.1642],
-        currentDensity: 4.1,
-        capacity: 8000,
-        riskLevel: 'medium',
-        timestamp: Date.now() - 120000,
-        estimatedPeople: 3280,
-        status: 'monitoring'
-      }
-    ];
-
-    setAlerts(dummyCrowdAlerts);
-
-    // Simulate real-time crowd density updates for religious gathering monitoring
-    const interval = setInterval(() => {
-      setAlerts(prev => prev.map(alert => ({
-        ...alert,
-        currentDensity: Math.max(1, alert.currentDensity + (Math.random() - 0.5) * 2),
-        estimatedPeople: Math.max(100, alert.estimatedPeople + Math.floor((Math.random() - 0.5) * 200)),
-        timestamp: Date.now(),
-        riskLevel: alert.currentDensity > 8 ? 'critical' : 
-                  alert.currentDensity > 6 ? 'high' : 
-                  alert.currentDensity > 4 ? 'medium' : 'low'
-      })));
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
+  const alerts = useAdminStore(s => s.crowdAlerts) as unknown as CrowdAlert[];
+  const takeCrowdAction = useAdminStore(s => s.takeCrowdAction);
 
   const handleTakeAction = (alertId: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { ...alert, status: 'resolved' as const }
-        : alert
-    ));
+    takeCrowdAction(alertId);
     toast.success('Crowd control action initiated');
   };
 

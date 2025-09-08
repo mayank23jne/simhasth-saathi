@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Copy, Share2, QrCode } from 'lucide-react';
-// import { QRCode } from 'qrcode.react';
+import QRCode from 'react-qr-code';
 import { toast } from 'sonner';
 
 interface MyQRModalProps {
@@ -58,22 +58,22 @@ const MyQRModal: React.FC<MyQRModalProps> = ({ isOpen, onClose, user }) => {
             My QR Code
           </DialogTitle>
         </DialogHeader>
-        <Card className="bg-background/80 shadow-lg rounded-2xl border-0">
+        <Card className="shadow-lg rounded-2xl border-0">
           <CardContent className="flex flex-col items-center gap-4 p-6">
-            <Avatar className="h-16 w-16 mb-2">
+            {/* <Avatar className="h-16 w-16 mb-2">
               {user.avatarUrl ? (
                 <AvatarImage src={user.avatarUrl} />
               ) : (
                 <AvatarFallback>{user.name?.[0] || '?'}</AvatarFallback>
               )}
-            </Avatar>
+            </Avatar> */}
             <div className="text-center">
               <div className="font-bold text-base text-foreground">{user.name}</div>
               {user.phone && <div className="text-sm text-muted-foreground">{user.phone}</div>}
               {user.groupCode && <div className="text-xs text-primary font-mono mt-1">Group: {user.groupCode}</div>}
             </div>
             <div className="my-2 rounded-xl bg-white p-2 shadow-inner border w-fit mx-auto">
-              {/* <QRCode value={qrData} size={160} level="M" includeMargin={false} renderAs="svg" /> */}
+              <QRCode value={qrData} size={160} />
             </div>
             <div className="flex gap-2 w-full">
               <Button className="flex-1" variant="outline" onClick={handleCopy}>

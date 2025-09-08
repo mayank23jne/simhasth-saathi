@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { AlertTriangle, Clock, MapPin, Phone, User, Search, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { useAdminStore } from '@/store/adminStore';
 
 // CORE SAFETY FEATURE: SOS Alerts for religious gatherings like Simhastha 2028
 // Supports one-tap emergency alerts to volunteers and police as per project requirements
@@ -13,7 +14,7 @@ interface SOSAlert {
   id: string;
   name: string;
   phone: string;
-  groupCode: string; // Essential for group-based tracking in religious gatherings
+  groupCode: string;
   location: string;
   coordinates: [number, number];
   issue: string;
@@ -21,8 +22,8 @@ interface SOSAlert {
   timestamp: number;
   status: 'active' | 'acknowledged' | 'resolved';
   assignedVolunteer?: string;
-  emergencyType: 'medical' | 'lost_person' | 'security' | 'crowd_control' | 'other'; // For religious gathering contexts
-  smsBackupSent?: boolean; // Offline fallback support as per requirements
+  emergencyType: 'medical' | 'lost_person' | 'security' | 'crowd_control' | 'other';
+  smsBackupSent?: boolean;
 }
 
 interface SOSAlertsPanelProps {
@@ -30,62 +31,13 @@ interface SOSAlertsPanelProps {
 }
 
 export const SOSAlertsPanel: React.FC<SOSAlertsPanelProps> = ({ expanded = false }) => {
-  const [alerts, setAlerts] = useState<SOSAlert[]>([]);
+  const alerts = useAdminStore(s => s.sosAlerts) as unknown as SOSAlert[];
+  const acknowledgeSOS = useAdminStore(s => s.acknowledgeSOS);
+  const resolveSOS = useAdminStore(s => s.resolveSOS);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'acknowledged'>('active');
 
-  useEffect(() => {
-    // SIMHASTHA CONTEXT: Realistic SOS scenarios for religious gatherings
-    const dummyAlerts: SOSAlert[] = [
-      {
-        id: 'sos_001',
-        name: 'Priya Sharma',
-        phone: '+91 98765 43210',
-        groupCode: 'GRP-2024-001',
-        location: 'Near Har Ki Pauri',
-        coordinates: [29.9457, 78.1642],
-        issue: 'Lost child - 8 year old boy in blue shirt',
-        priority: 'high',
-        timestamp: Date.now() - 300000, // 5 minutes ago
-        status: 'active',
-        emergencyType: 'lost_person',
-        smsBackupSent: true // Offline SMS fallback activated
-      },
-      {
-        id: 'sos_002',
-        name: 'Rajesh Kumar',
-        phone: '+91 87654 32109',
-        groupCode: 'GRP-2024-015',
-        location: 'Mansa Devi Temple Area',
-        coordinates: [29.9457, 78.1642],
-        issue: 'Medical emergency - chest pain',
-        priority: 'high',
-        timestamp: Date.now() - 600000, // 10 minutes ago
-        status: 'acknowledged',
-        assignedVolunteer: 'Dr. Singh',
-        emergencyType: 'medical',
-        smsBackupSent: false
-      },
-      {
-        id: 'sos_003',
-        name: 'Anita Devi',
-        phone: '+91 76543 21098',
-        groupCode: 'GRP-2024-007',
-        location: 'Ganga Aarti Ghat',
-        coordinates: [29.9457, 78.1642],
-        issue: 'Separated from group during crowd surge',
-        priority: 'medium',
-        timestamp: Date.now() - 900000, // 15 minutes ago
-        status: 'active',
-        emergencyType: 'crowd_control',
-        smsBackupSent: true
-      }
-    ];
-
-    setAlerts(dummyAlerts);
-  }, []);
-
-  const filteredAlerts = alerts.filter(alert => {
+  const filteredAlerts = useMemo(() => alerts.filter(alert => {
     const matchesSearch = alert.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          alert.groupCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          alert.issue.toLowerCase().includes(searchTerm.toLowerCase());
@@ -93,23 +45,15 @@ export const SOSAlertsPanel: React.FC<SOSAlertsPanelProps> = ({ expanded = false
     const matchesFilter = filter === 'all' || alert.status === filter;
     
     return matchesSearch && matchesFilter;
-  });
+  }), [alerts, searchTerm, filter]);
 
   const handleAcknowledge = (alertId: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { ...alert, status: 'acknowledged' as const, assignedVolunteer: 'Current User' }
-        : alert
-    ));
+    acknowledgeSOS(alertId, 'Current User');
     toast.success('Alert acknowledged and assigned');
   };
 
   const handleResolve = (alertId: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { ...alert, status: 'resolved' as const }
-        : alert
-    ));
+    resolveSOS(alertId);
     toast.success('Alert marked as resolved');
   };
 
