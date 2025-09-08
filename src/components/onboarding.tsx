@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { LanguageSelector } from '@/components/ui/language-selector';
 import { ArrowRight, Shield } from 'lucide-react';
 import simhasthLogo from '@/assets/simhasth-logo.png';
+import hackathonBadge from '@/assets/Hackathon.png';
 import { LanguageCode, useTranslation } from '@/context/TranslationContext';
 
 interface OnboardingProps {
@@ -28,7 +29,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       <div className="w-full max-w-md space-y-8">
         {/* Logo and Title */}
         <div className="text-center space-y-6">
-          <div className="flex justify-center">
+          <div className=" relative flex justify-center">
             <div className="relative">
               <img 
                 src={simhasthLogo} 
@@ -39,6 +40,13 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                 <Shield className="h-4 w-4 text-primary-foreground" />
               </div>
             </div>
+            <div className="absolute -top-3 -left-3 bg-card/90 rounded-md p-1 shadow-soft backdrop-blur-sm left-[36px] top-[-40px]">
+                <img
+                  src={hackathonBadge}
+                  alt="Hackathon Badge"
+                  className="h-[50px] w-[100px] object-contain"
+                />
+              </div>
           </div>
           
           <div className="space-y-2">

@@ -9,6 +9,7 @@ import { Shield, Users, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslation } from '@/context/TranslationContext';
 import { toast } from 'sonner';
+import hackathonBadge from '@/assets/Hackathon.png';
 
 interface AdminLoginProps {}
 
@@ -67,15 +68,24 @@ export const AdminLogin: React.FC<AdminLoginProps> = () => {
         className="w-full max-w-md relative z-10"
       >
         <Card className="shadow-elegant backdrop-blur-xl bg-white/95 border-white/20">
-          <CardHeader className="text-center space-y-4 pb-8">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="mx-auto w-20 h-20 bg-gradient-primary rounded-3xl flex items-center justify-center mb-4 shadow-glow"
-            >
-              <Shield className="h-10 w-10 text-white drop-shadow-lg" />
-            </motion.div>
+          <CardHeader className="relative text-center space-y-4 pb-8">
+            <div className=" mx-auto inline-block mb-4">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                className="w-20 h-20 bg-gradient-primary rounded-3xl flex items-center justify-center shadow-glow"
+              >
+                <Shield className="h-10 w-10 text-white drop-shadow-lg" />
+              </motion.div>
+              <div className="absolute bg-card/90 rounded-md !rounded-bl-0 p-1 shadow-soft backdrop-blur-sm left-[0px] top-[-59px]">
+                <img
+                  src={hackathonBadge}
+                  alt="Hackathon Badge"
+                  className="h-[50px] w-[100px] object-contain"
+                />
+              </div>
+            </div>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
