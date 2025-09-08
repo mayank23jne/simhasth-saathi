@@ -206,7 +206,7 @@ export const SOSAlertsPanel: React.FC<SOSAlertsPanelProps> = ({ expanded = false
         )}
       </CardHeader>
 
-      <CardContent className="space-y-3 overflow-y-scroll h-72 ">
+      <CardContent className={`space-y-3 ${expanded ? 'overflow-y-auto h-max' : 'overflow-y-scroll h-72'}`}>
         <AnimatePresence>
           {filteredAlerts.slice(0, expanded ? filteredAlerts.length : 3).map((alert, index) => (
               <motion.div

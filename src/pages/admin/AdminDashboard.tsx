@@ -43,6 +43,7 @@ export const AdminDashboard: React.FC = () => {
 
   const [isOffline, setIsOffline] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     // Check offline mode
@@ -239,7 +240,7 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Enhanced Main Dashboard Content */}
         <Card className="bg-white border-2 border-gray-100 shadow-elegant admin-card-hover">
-          <Tabs defaultValue="overview" className="space-y-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-0">
             <div className="p-4 lg:p-6 border-b border-gray-100">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
@@ -250,42 +251,78 @@ export const AdminDashboard: React.FC = () => {
                     Monitor and manage all safety operations
                   </p>
                 </div>
-                <TabsList className="w-full lg:w-auto overflow-x-auto bg-gray-50 p-1 rounded-xl">
-                  <TabsTrigger 
-                    value="overview" 
-                    className="text-xs lg:text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                <TabsList className="relative w-full lg:w-auto overflow-x-auto overflow-y-hidden bg-gray-50/80 p-1 rounded-xl ring-1 ring-gray-200/60 shadow-inner scroll-smooth flex gap-1">
+                  <TabsTrigger
+                    value="overview"
+                    className="relative text-xs lg:text-sm whitespace-nowrap rounded-lg px-4 py-2 min-w-max focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 ease-out hover:bg-white/70 hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:scale-[1.02]"
                   >
-                    Overview
+                    {activeTab === 'overview' && (
+                      <motion.span
+                        layoutId="activeTabBubble"
+                        className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                      />
+                    )}
+                    <span className="relative z-10">Overview</span>
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="sos"
-                    className="text-xs lg:text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                    className="relative text-xs lg:text-sm whitespace-nowrap rounded-lg px-4 py-2 min-w-max focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 ease-out hover:bg-white/70 hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:scale-[1.02]"
                   >
-                    SOS
+                    {activeTab === 'sos' && (
+                      <motion.span
+                        layoutId="activeTabBubble"
+                        className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                      />
+                    )}
+                    <span className="relative z-10">SOS</span>
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="groups"
-                    className="text-xs lg:text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                    className="relative text-xs lg:text-sm whitespace-nowrap rounded-lg px-4 py-2 min-w-max focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 ease-out hover:bg-white/70 hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:scale-[1.02]"
                   >
-                    Groups
+                    {activeTab === 'groups' && (
+                      <motion.span
+                        layoutId="activeTabBubble"
+                        className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                      />
+                    )}
+                    <span className="relative z-10">Groups</span>
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="lost-found"
-                    className="text-xs lg:text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                    className="relative text-xs lg:text-sm whitespace-nowrap rounded-lg px-4 py-2 min-w-max focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 ease-out hover:bg-white/70 hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:scale-[1.02]"
                   >
-                    Lost & Found
+                    {activeTab === 'lost-found' && (
+                      <motion.span
+                        layoutId="activeTabBubble"
+                        className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                      />
+                    )}
+                    <span className="relative z-10">Lost & Found</span>
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="crowd-alerts"
-                    className="text-xs lg:text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                    className="relative text-xs lg:text-sm whitespace-nowrap rounded-lg px-4 py-2 min-w-max focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 ease-out hover:bg-white/70 hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:scale-[1.02]"
                   >
-                    Crowd Alerts
+                    {activeTab === 'crowd-alerts' && (
+                      <motion.span
+                        layoutId="activeTabBubble"
+                        className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                      />
+                    )}
+                    <span className="relative z-10">Crowd Alerts</span>
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="analytics"
-                    className="text-xs lg:text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                    className="relative text-xs lg:text-sm whitespace-nowrap rounded-lg px-4 py-2 min-w-max focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-200 ease-out hover:bg-white/70 hover:shadow-sm data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:scale-[1.02]"
                   >
-                    Analytics
+                    {activeTab === 'analytics' && (
+                      <motion.span
+                        layoutId="activeTabBubble"
+                        className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                      />
+                    )}
+                    <span className="relative z-10">Analytics</span>
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -327,8 +364,9 @@ export const AdminDashboard: React.FC = () => {
                   </div>
 
                   {/* Main Content Grid */}
-                  <div className="">
+                  <div className="flex justify-between">
                     <motion.div
+                      className="w-[49%]"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 }}
@@ -336,6 +374,7 @@ export const AdminDashboard: React.FC = () => {
                       <SOSAlertsPanel />
                     </motion.div>
                     <motion.div
+                      className="w-[49%]"
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 }}

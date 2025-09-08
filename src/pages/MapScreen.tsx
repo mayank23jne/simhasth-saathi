@@ -70,7 +70,8 @@ function smoothMoveMarkerAlongPath(
     return;
   }
 
-  const WALK_SPEED_MPS = 5 * 1000 / 3600; // ~5 km/h in meters per second
+  // Slower-than-walking movement (~2 km/h) to reduce jittery feel on mobile
+  const WALK_SPEED_MPS = 2 * 1000 / 3600; // meters per second
 
   const state = animationState.current.get(memberId) || {
     currentPathIndex: 0,
@@ -207,6 +208,42 @@ const MapScreen: React.FC = () => {
     const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
     return R * c;
   }, []);
+
+  // Road snapping (OSRM) cache and control
+  const memberRoadPathRef = useRef<Map<string, LatLng[]>>(new Map());
+  const memberRoadSnapKeyRef = useRef<Map<string, string>>(new Map());
+  const memberRoadSnapInFlightRef = useRef<Set<string>>(new Set());
+  const memberRoadSnapLastReqTsRef = useRef<Map<string, number>>(new Map());
+
+  const requestRoadSnapForSegment = useCallback(async (memberId: string, from: LatLng, to: LatLng) => {
+    try {
+      if (memberRoadSnapInFlightRef.current.has(memberId)) return;
+      const now = Date.now();
+      const lastTs = memberRoadSnapLastReqTsRef.current.get(memberId) || 0;
+      if (now - lastTs < 2500) return; // throttle per member
+      memberRoadSnapLastReqTsRef.current.set(memberId, now);
+      memberRoadSnapInFlightRef.current.add(memberId);
+
+      const distM = haversine({ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng });
+      if (distM < 20) { // very small hops not worth snapping
+        memberRoadSnapInFlightRef.current.delete(memberId);
+        return;
+      }
+
+      const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('osrm failed');
+      const data = await res.json();
+      const coords: [number, number][] | undefined = data?.routes?.[0]?.geometry?.coordinates;
+      if (!coords || coords.length < 2) throw new Error('no coords');
+      const snapped: LatLng[] = coords.map((c) => ({ lat: c[1], lng: c[0] }));
+      memberRoadPathRef.current.set(memberId, snapped);
+    } catch {
+      // ignore failures, we will fallback to straight movement
+    } finally {
+      memberRoadSnapInFlightRef.current.delete(memberId);
+    }
+  }, [haversine]);
 
   const findNearestHelpCenter = useCallback((origin: { lat: number; lng: number }) => {
     let best = helpCenters[0];
@@ -605,12 +642,37 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
 
       const memberPath = m.path && Array.isArray(m.path) && m.path.length > 1 ? m.path : null;
 
+      // Prepare road-snapped segment for the latest movement
+      const lastTwo: LatLng[] | null = (() => {
+        if (memberPath && memberPath.length >= 2) return [memberPath[memberPath.length - 2], memberPath[memberPath.length - 1]];
+        if (existing) {
+          const cur = existing.getLatLng();
+          if (m?.position) return [{ lat: cur.lat, lng: cur.lng }, { lat: m.position.lat, lng: m.position.lng }];
+        }
+        return null;
+      })();
+      if (lastTwo) {
+        const key = `${lastTwo[0].lat.toFixed(5)},${lastTwo[0].lng.toFixed(5)}|${lastTwo[1].lat.toFixed(5)},${lastTwo[1].lng.toFixed(5)}`;
+        const prevKey = memberRoadSnapKeyRef.current.get(m.id);
+        if (prevKey !== key) {
+          memberRoadSnapKeyRef.current.set(m.id, key);
+          // Fire and forget; cached in memberRoadPathRef
+          requestRoadSnapForSegment(m.id, lastTwo[0], lastTwo[1]);
+        }
+      }
+
       if (existing) {
-        // Smoothly move marker along path if available, otherwise just update position
-        if (memberPath) {
+        // Prefer road-snapped segment if available; else use member path; else fallback to jitter-filtered step
+        const snapped = memberRoadPathRef.current.get(m.id);
+        if (snapped && snapped.length > 1) {
+          smoothMoveMarkerAlongPath(existing, snapped, memberPathAnimStateRef, m.id, haversine);
+        } else if (memberPath) {
           smoothMoveMarkerAlongPath(existing, memberPath, memberPathAnimStateRef, m.id, haversine);
         } else {
-          smoothMoveMarker(existing, m.position, 600, memberAnimRefs.current);
+          const current = existing.getLatLng();
+          const dist = haversine({ lat: current.lat, lng: current.lng }, { lat: m.position.lat, lng: m.position.lng });
+          const target = dist < 6 ? { lat: current.lat, lng: current.lng } : m.position;
+          smoothMoveMarker(existing, target as any, 900, memberAnimRefs.current);
         }
         existing.setIcon(icon);
       } else {
@@ -620,7 +682,10 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
           .bindTooltip(m.name, { permanent: true, direction: 'top', offset: L.point(0, -10) });
         newMarker.on('click', () => setSelectedMember(m));
         cache.set(m.id, newMarker);
-        if (memberPath) {
+        const snapped = memberRoadPathRef.current.get(m.id);
+        if (snapped && snapped.length > 1) {
+          smoothMoveMarkerAlongPath(newMarker, snapped, memberPathAnimStateRef, m.id, haversine);
+        } else if (memberPath) {
           smoothMoveMarkerAlongPath(newMarker, memberPath, memberPathAnimStateRef, m.id, haversine);
         }
       }
@@ -1160,13 +1225,13 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
         <div className="p-4">
           <Alert className="border-warning bg-warning/10">
             <AlertCircle className="h-4 w-4 text-warning" />
-            <AlertDescription className="text-warning-foreground">
+            <AlertDescription className="text-warning">
               {(geofenceBreachName || 'Member')} {t('safe')} क्षेत्र से बाहर गए हैं
               <Button
                 variant="outline"
                 size="sm"
-                className="ml-2 h-7 px-3 text-[12px] border-warning text-warning hover:bg-warning hover:text-warning-foreground focus:ring-2 focus:ring-offset-1 focus:ring-warning"
-                onClick={handleViewGeofenceBreach}
+                className="ml-2 h-6 px-2 text-xs border-warning text-warning hover:bg-warning hover:text-warning-foreground"
+                onClick={() => { setShowGeofenceAlert(false); setGeofenceBreachName(null); }}
               >
                 {t('viewMap')}
               </Button>

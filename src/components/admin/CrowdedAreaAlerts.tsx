@@ -155,7 +155,7 @@ export const CrowdedAreaAlerts: React.FC<CrowdedAreaAlertsProps> = ({ expanded =
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3 overflow-auto overflow-y-scroll h-72">
+      <CardContent className={`space-y-3 ${expanded ? 'overflow-y-auto h-max' : 'overflow-y-scroll h-72'}`}>
         <AnimatePresence>
           {alerts.slice(0, expanded ? alerts.length : 3).map((alert, index) => (
             <motion.div

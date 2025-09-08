@@ -205,8 +205,8 @@ export const AnalyticsSection: React.FC = () => {
                 <XAxis dataKey="hour" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="alerts" fill="#ef4444" name="Alerts" />
-                <Bar dataKey="resolved" fill="#10b981" name="Resolved" />
+                <Bar dataKey="alerts" fill="#ef4444" name="Alerts" isAnimationActive={false} />
+                <Bar dataKey="resolved" fill="#10b981" name="Resolved" isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -231,6 +231,7 @@ export const AnalyticsSection: React.FC = () => {
                   stroke="#3b82f6" 
                   strokeWidth={3}
                   name="Avg Time (min)"
+                  isAnimationActive={false}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -274,6 +275,7 @@ export const AnalyticsSection: React.FC = () => {
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="count"
+                  isAnimationActive={false}
                 >
                   {data.alertTypes.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
