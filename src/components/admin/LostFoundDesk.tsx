@@ -9,6 +9,8 @@ import { Search, Plus, QrCode, User, Clock, MapPin, Phone, Camera } from 'lucide
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
+// CORE SAFETY FEATURE: Digital Lost & Found Helpdesk with QR code integration
+// Essential for large religious gatherings like Simhastha 2028 as per project requirements
 interface LostFoundReport {
   id: string;
   type: 'lost' | 'found';
@@ -20,8 +22,10 @@ interface LostFoundReport {
   reporterPhone: string;
   timestamp: number;
   status: 'active' | 'resolved';
-  qrCode?: string;
+  qrCode?: string; // QR code based system as per project requirements
   photo?: string;
+  groupCode?: string; // Link to group-based tracking system
+  priority: 'high' | 'medium' | 'low'; // Based on age and vulnerability
 }
 
 export const LostFoundDesk: React.FC = () => {
@@ -53,7 +57,9 @@ export const LostFoundDesk: React.FC = () => {
         reporterPhone: '+91 98765 43210',
         timestamp: Date.now() - 1800000, // 30 minutes ago
         status: 'active',
-        qrCode: 'QR-LF-001'
+        qrCode: 'QR-LF-001',
+        priority: 'high', // Child missing - highest priority
+        groupCode: 'SMST-2024-001'
       },
       {
         id: 'lf_002',
@@ -66,7 +72,8 @@ export const LostFoundDesk: React.FC = () => {
         reporterPhone: '+91 87654 32109',
         timestamp: Date.now() - 900000, // 15 minutes ago
         status: 'active',
-        qrCode: 'QR-LF-002'
+        qrCode: 'QR-LF-002',
+        priority: 'high' // Elderly person - high priority
       },
       {
         id: 'lf_003',
@@ -77,7 +84,8 @@ export const LostFoundDesk: React.FC = () => {
         reporterName: 'Sunita Devi',
         reporterPhone: '+91 76543 21098',
         timestamp: Date.now() - 3600000, // 1 hour ago
-        status: 'resolved'
+        status: 'resolved',
+        priority: 'low' // Material item - lower priority
       }
     ];
 
@@ -108,7 +116,9 @@ export const LostFoundDesk: React.FC = () => {
       reporterPhone: formData.reporterPhone,
       timestamp: Date.now(),
       status: 'active',
-      qrCode: `QR-LF-${Date.now()}`
+      qrCode: `QR-LF-${Date.now()}`,
+      priority: (formData.age && parseInt(formData.age) < 12) ? 'high' : 
+                (formData.age && parseInt(formData.age) > 60) ? 'high' : 'medium'
     };
 
     setReports(prev => [newReport, ...prev]);

@@ -7,11 +7,13 @@ import { AlertTriangle, Clock, MapPin, Phone, User, Search, Filter } from 'lucid
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
+// CORE SAFETY FEATURE: SOS Alerts for religious gatherings like Simhastha 2028
+// Supports one-tap emergency alerts to volunteers and police as per project requirements
 interface SOSAlert {
   id: string;
   name: string;
   phone: string;
-  groupCode: string;
+  groupCode: string; // Essential for group-based tracking in religious gatherings
   location: string;
   coordinates: [number, number];
   issue: string;
@@ -19,6 +21,8 @@ interface SOSAlert {
   timestamp: number;
   status: 'active' | 'acknowledged' | 'resolved';
   assignedVolunteer?: string;
+  emergencyType: 'medical' | 'lost_person' | 'security' | 'crowd_control' | 'other'; // For religious gathering contexts
+  smsBackupSent?: boolean; // Offline fallback support as per requirements
 }
 
 interface SOSAlertsPanelProps {
@@ -31,7 +35,7 @@ export const SOSAlertsPanel: React.FC<SOSAlertsPanelProps> = ({ expanded = false
   const [filter, setFilter] = useState<'all' | 'active' | 'acknowledged'>('active');
 
   useEffect(() => {
-    // Load dummy SOS data
+    // SIMHASTHA CONTEXT: Realistic SOS scenarios for religious gatherings
     const dummyAlerts: SOSAlert[] = [
       {
         id: 'sos_001',
@@ -43,7 +47,9 @@ export const SOSAlertsPanel: React.FC<SOSAlertsPanelProps> = ({ expanded = false
         issue: 'Lost child - 8 year old boy in blue shirt',
         priority: 'high',
         timestamp: Date.now() - 300000, // 5 minutes ago
-        status: 'active'
+        status: 'active',
+        emergencyType: 'lost_person',
+        smsBackupSent: true // Offline SMS fallback activated
       },
       {
         id: 'sos_002',
@@ -56,7 +62,9 @@ export const SOSAlertsPanel: React.FC<SOSAlertsPanelProps> = ({ expanded = false
         priority: 'high',
         timestamp: Date.now() - 600000, // 10 minutes ago
         status: 'acknowledged',
-        assignedVolunteer: 'Dr. Singh'
+        assignedVolunteer: 'Dr. Singh',
+        emergencyType: 'medical',
+        smsBackupSent: false
       },
       {
         id: 'sos_003',
@@ -65,10 +73,12 @@ export const SOSAlertsPanel: React.FC<SOSAlertsPanelProps> = ({ expanded = false
         groupCode: 'GRP-2024-007',
         location: 'Ganga Aarti Ghat',
         coordinates: [29.9457, 78.1642],
-        issue: 'Separated from group',
+        issue: 'Separated from group during crowd surge',
         priority: 'medium',
         timestamp: Date.now() - 900000, // 15 minutes ago
-        status: 'active'
+        status: 'active',
+        emergencyType: 'crowd_control',
+        smsBackupSent: true
       }
     ];
 

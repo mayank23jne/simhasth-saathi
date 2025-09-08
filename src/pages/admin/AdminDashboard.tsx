@@ -9,7 +9,10 @@ import { SOSAlertsPanel } from '@/components/admin/SOSAlertsPanel';
 import { GroupMapView } from '@/components/admin/GroupMapView';
 import { LostFoundDesk } from '@/components/admin/LostFoundDesk';
 import { AnalyticsSection } from '@/components/admin/AnalyticsSection';
-import { GeoFenceAlerts } from '@/components/admin/GeoFenceAlerts';
+// REMOVED: GeoFenceAlerts - Not aligned with project requirements. 
+// Project focuses on safety coordination, not geo-fencing functionality.
+// import { GeoFenceAlerts } from '@/components/admin/GeoFenceAlerts';
+import { CrowdedAreaAlerts } from '@/components/admin/CrowdedAreaAlerts';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { OfflineBanner } from '@/components/admin/OfflineBanner';
 
@@ -18,7 +21,7 @@ interface DashboardStats {
   totalGroups: number;
   onlineVolunteers: number;
   resolvedAlerts: number;
-  crowdDensity: number;
+  crowdDensity: number; // Core safety feature: Monitor crowd density for emergency response
   responseTime: number;
   totalPilgrims: number;
   safetyScore: number;
@@ -264,12 +267,12 @@ export const AdminDashboard: React.FC = () => {
                   >
                     Lost & Found
                   </TabsTrigger>
-                  {/* <TabsTrigger 
-                    value="geofence"
+                  <TabsTrigger 
+                    value="crowd-alerts"
                     className="text-xs lg:text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
                   >
-                    Geo-Fence
-                  </TabsTrigger> */}
+                    Crowd Alerts
+                  </TabsTrigger>
                   <TabsTrigger 
                     value="analytics"
                     className="text-xs lg:text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
@@ -324,13 +327,13 @@ export const AdminDashboard: React.FC = () => {
                     >
                       <SOSAlertsPanel />
                     </motion.div>
-                    {/* <motion.div
+                    <motion.div
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 }}
                     >
-                      <GeoFenceAlerts />
-                    </motion.div> */}
+                      <CrowdedAreaAlerts />
+                    </motion.div>
                   </div>
                   
                   <motion.div
@@ -373,13 +376,13 @@ export const AdminDashboard: React.FC = () => {
                 </motion.div>
               </TabsContent>
 
-              <TabsContent value="geofence" className="mt-0">
+              <TabsContent value="crowd-alerts" className="mt-0">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <GeoFenceAlerts expanded />
+                  <CrowdedAreaAlerts expanded />
                 </motion.div>
               </TabsContent>
 

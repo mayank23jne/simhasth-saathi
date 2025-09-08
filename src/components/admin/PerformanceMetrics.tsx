@@ -5,6 +5,8 @@ import { Progress } from '@/components/ui/progress';
 import { Gauge, TrendingUp, TrendingDown, Zap, Clock, Shield, Users, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// PERFORMANCE MONITORING: Core metrics for religious gathering safety management
+// Aligned with project requirements for real-time monitoring and response management
 interface MetricData {
   label: string;
   value: number;
@@ -14,39 +16,44 @@ interface MetricData {
   trendValue: number;
   color: string;
   icon: React.ComponentType<any>;
+  critical: boolean; // Mark critical safety metrics
 }
 
 export const PerformanceMetrics: React.FC = () => {
+  // RELIGIOUS GATHERING SPECIFIC METRICS: Tailored for safety monitoring in events like Simhastha 2028
   const [metrics, setMetrics] = useState<MetricData[]>([
     {
-      label: 'Response Time',
+      label: 'Emergency Response Time',
       value: 4.2,
       target: 5.0,
       unit: 'min',
       trend: 'down',
       trendValue: 0.3,
       color: 'text-green-500',
-      icon: Zap
+      icon: Zap,
+      critical: true // Critical for emergency situations
     },
     {
-      label: 'Safety Score',
+      label: 'Overall Safety Score',
       value: 94,
       target: 95,
       unit: '%',
       trend: 'up',
       trendValue: 2,
       color: 'text-blue-500',
-      icon: Shield
+      icon: Shield,
+      critical: true
     },
     {
-      label: 'Volunteer Efficiency',
+      label: 'Volunteer Coverage',
       value: 87,
       target: 90,
       unit: '%',
       trend: 'up',
       trendValue: 5,
       color: 'text-purple-500',
-      icon: Users
+      icon: Users,
+      critical: false
     },
     {
       label: 'System Uptime',
@@ -56,7 +63,8 @@ export const PerformanceMetrics: React.FC = () => {
       trend: 'stable',
       trendValue: 0,
       color: 'text-emerald-500',
-      icon: Activity
+      icon: Activity,
+      critical: true // Critical for low-connectivity environments
     }
   ]);
 

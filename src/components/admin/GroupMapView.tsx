@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { MapPin, Users, Search, Eye, MapIcon, Navigation } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// CORE FEATURE: Group-based live location tracking for religious gatherings
+// Essential for coordinated safety management in large events like Simhastha 2028
 interface Group {
   id: string;
-  code: string;
+  code: string; // Unique group codes for easy identification as per project requirements
   name: string;
   memberCount: number;
-  leader: string;
+  leader: string; // Group leader for coordination
   location: string;
   coordinates: [number, number];
   lastUpdate: number;
@@ -20,7 +22,10 @@ interface Group {
     name: string;
     phone: string;
     status: 'safe' | 'missing' | 'emergency';
+    lastSeen?: number; // For lost person tracking
   }>;
+  qrCode?: string; // Group QR code for quick identification
+  emergencyContact?: string; // Backup contact for offline scenarios
 }
 
 interface GroupMapViewProps {
@@ -33,12 +38,12 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
 
   useEffect(() => {
-    // Load dummy group data
+    // SIMHASTHA CONTEXT: Realistic group data for religious pilgrimage tracking
     const dummyGroups: Group[] = [
       {
         id: 'grp_001',
-        code: 'GRP-2024-001',
-        name: 'Delhi Pilgrims',
+        code: 'SMST-2024-001', // Simhastha-specific group codes
+        name: 'Delhi Pilgrims - Haridwar Yatra',
         memberCount: 25,
         leader: 'Priya Sharma',
         location: 'Har Ki Pauri',
@@ -48,28 +53,32 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
         members: [
           { name: 'Priya Sharma', phone: '+91 98765 43210', status: 'safe' },
           { name: 'Raj Kumar', phone: '+91 98765 43211', status: 'safe' },
-          { name: 'Sunita Devi', phone: '+91 98765 43212', status: 'missing' },
-        ]
+          { name: 'Sunita Devi', phone: '+91 98765 43212', status: 'missing', lastSeen: Date.now() - 1800000 },
+        ],
+        qrCode: 'SMST-QR-001',
+        emergencyContact: '+91 98765 43210'
       },
       {
         id: 'grp_002',
-        code: 'GRP-2024-015',
+        code: 'SMST-2024-015',
         name: 'Mumbai Family Group',
         memberCount: 12,
         leader: 'Rajesh Kumar',
         location: 'Mansa Devi Temple',
         coordinates: [29.9457, 78.1642],
         lastUpdate: Date.now() - 300000,
-        status: 'emergency',
+        status: 'emergency', // Medical emergency case
         members: [
           { name: 'Rajesh Kumar', phone: '+91 87654 32109', status: 'emergency' },
           { name: 'Meera Kumar', phone: '+91 87654 32110', status: 'safe' },
-        ]
+        ],
+        qrCode: 'SMST-QR-015',
+        emergencyContact: '+91 87654 32109'
       },
       {
         id: 'grp_003',
-        code: 'GRP-2024-007',
-        name: 'Gujrat Yatra Group',
+        code: 'SMST-2024-007',
+        name: 'Gujarat Yatra Group',
         memberCount: 35,
         leader: 'Anita Devi',
         location: 'Ganga Aarti Ghat',
@@ -79,7 +88,9 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
         members: [
           { name: 'Anita Devi', phone: '+91 76543 21098', status: 'safe' },
           { name: 'Bharat Patel', phone: '+91 76543 21099', status: 'safe' },
-        ]
+        ],
+        qrCode: 'SMST-QR-007',
+        emergencyContact: '+91 76543 21098'
       }
     ];
 
