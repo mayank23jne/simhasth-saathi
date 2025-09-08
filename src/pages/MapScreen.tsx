@@ -23,33 +23,33 @@ function easeInOutQuad(t: number) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 function smoothMoveMarker(marker: L.Marker, to: LatLng, durationMs: number, animStateMap: Map<L.Marker, { raf?: number }>) {
-  try {
-    const fromLatLng = marker.getLatLng();
-    const from = { lat: fromLatLng.lat, lng: fromLatLng.lng };
-    const start = performance.now();
-    const state = animStateMap.get(marker) || {};
-    if ((state as any).raf) cancelAnimationFrame((state as any).raf);
+  // try {
+  //   const fromLatLng = marker.getLatLng();
+  //   const from = { lat: fromLatLng.lat, lng: fromLatLng.lng };
+  //   const start = performance.now();
+  //   const state = animStateMap.get(marker) || {};
+  //   if ((state as any).raf) cancelAnimationFrame((state as any).raf);
 
-    const step = (now: number) => {
-      const elapsed = Math.min(1, (now - start) / durationMs);
-      const t = easeInOutQuad(elapsed);
-      const lat = lerp(from.lat, to.lat, t);
-      const lng = lerp(from.lng, to.lng, t);
-      marker.setLatLng([lat, lng]);
+  //   const step = (now: number) => {
+  //     const elapsed = Math.min(1, (now - start) / durationMs);
+  //     const t = easeInOutQuad(elapsed);
+  //     const lat = lerp(from.lat, to.lat, t);
+  //     const lng = lerp(from.lng, to.lng, t);
+  //     marker.setLatLng([lat, lng]);
 
-      if (elapsed < 1) {
-        (state as any).raf = requestAnimationFrame(step);
-        animStateMap.set(marker, state as any);
-      } else {
-        animStateMap.delete(marker);
-      }
-    };
+  //     if (elapsed < 1) {
+  //       (state as any).raf = requestAnimationFrame(step);
+  //       animStateMap.set(marker, state as any);
+  //     } else {
+  //       animStateMap.delete(marker);
+  //     }
+  //   };
 
-    (state as any).raf = requestAnimationFrame(step);
-    animStateMap.set(marker, state as any);
-  } catch {
-    marker.setLatLng([to.lat, to.lng]);
-  }
+  //   (state as any).raf = requestAnimationFrame(step);
+  //   animStateMap.set(marker, state as any);
+  // } catch {
+  //   marker.setLatLng([to.lat, to.lng]);
+  // }
 }
 
 // Smooth animation for a marker along a given path
@@ -71,7 +71,8 @@ function smoothMoveMarkerAlongPath(
   }
 
   // Slower-than-walking movement (~2 km/h) to reduce jittery feel on mobile
-  const WALK_SPEED_MPS = 2 * 1000 / 3600; // meters per second
+  // const WALK_SPEED_MPS = 2 * 1000 / 3600; // meters per second
+  const WALK_SPEED_MPS = 0 * 1000 / 3600; // meters per second
 
   const state = animationState.current.get(memberId) || {
     currentPathIndex: 0,
