@@ -71,22 +71,26 @@ export const AdminHeader: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm">
+    <motion.header 
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-elegant"
+    >
       <div className="container mx-auto px-4 lg:px-6">
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Enhanced Logo & Title */}
           <div className="flex items-center gap-4">
-            <div className="h-10 w-10 lg:h-12 lg:w-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-lg lg:text-xl">S</span>
+            <div className="h-10 w-10 lg:h-12 lg:w-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-elegant hover-scale">
+              <span className="text-white font-bold text-lg lg:text-xl font-heading">S</span>
             </div>
             <div className="hidden sm:block">
-              <h1 className="font-bold text-xl lg:text-2xl bg-gradient-primary bg-clip-text text-transparent text-white">
+              <h1 className="font-bold text-xl lg:text-2xl font-heading text-foreground">
                 Simhastha Saathi
               </h1>
-              <p className="text-sm text-muted-foreground">Admin Control Center</p>
+              <p className="text-sm text-muted-foreground font-medium">Admin Control Center</p>
             </div>
             <div className="sm:hidden">
-              <h1 className="font-bold text-lg bg-gradient-primary bg-clip-text text-transparent">
+              <h1 className="font-bold text-lg font-heading text-foreground">
                 Control Center
               </h1>
             </div>
@@ -96,10 +100,10 @@ export const AdminHeader: React.FC = () => {
           <div className="flex items-center gap-2 lg:gap-4">
             {/* Current Time - Desktop Only */}
             <div className="hidden lg:flex flex-col items-end text-right">
-              <div className="text-sm font-semibold text-foreground">
+              <div className="text-sm font-semibold text-foreground font-heading">
                 {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground font-medium">
                 {currentTime.toLocaleDateString([], { month: 'short', day: 'numeric' })}
               </div>
             </div>
@@ -109,37 +113,37 @@ export const AdminHeader: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={toggleOfflineMode}
-              className="hidden md:flex"
+              className="hidden md:flex hover-scale"
             >
               {isOnline ? (
                 <Wifi className="h-4 w-4 text-green-500" />
               ) : (
-                <WifiOff className="h-4 w-4 text-red-500" />
+                <WifiOff className="h-4 w-4 text-red-500 animate-pulse" />
               )}
             </Button>
 
             {/* Language Selector */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="hidden md:flex">
+                <Button variant="ghost" size="sm" className="hidden md:flex hover-scale">
                   <Globe className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent modal={false} className="bg-white shadow-lg rounded-xl border border-gray-200 max-h-60 overflow-y-auto z-50">
-                <DropdownMenuItem onClick={() => setLanguage('en')} className="hover:bg-gray-50">
+              <DropdownMenuContent modal={false} className="dropdown-content font-medium">
+                <DropdownMenuItem onClick={() => setLanguage('en')} className="hover:bg-gray-50 font-medium">
                   English
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLanguage('hi')} className="hover:bg-gray-50">
+                <DropdownMenuItem onClick={() => setLanguage('hi')} className="hover:bg-gray-50 font-medium">
                   हिंदी
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
             {/* Notifications */}
-            <Button variant="ghost" size="sm" className="relative">
+            <Button variant="ghost" size="sm" className="relative hover-scale">
               <Bell className="h-4 w-4" />
               {notifications > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0 bg-red-500">
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0 bg-red-500 text-white pulse-border">
                   {notifications}
                 </Badge>
               )}
@@ -148,15 +152,15 @@ export const AdminHeader: React.FC = () => {
             {/* Enhanced User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-2 hover:bg-gray-50">
-                  <div className="h-8 w-8 bg-gradient-primary rounded-full flex items-center justify-center">
+                <Button variant="ghost" size="sm" className="flex items-center gap-2 hover:bg-gray-50 hover-scale">
+                  <div className="h-8 w-8 bg-gradient-primary rounded-full flex items-center justify-center shadow-elegant">
                     <User className="h-4 w-4 text-white" />
                   </div>
                   {adminData && (
                     <div className="hidden lg:flex flex-col items-start">
-                      <span className="text-sm font-semibold">{adminData.username}</span>
+                      <span className="text-sm font-semibold font-heading">{adminData.username}</span>
                       <Badge 
-                        className={`${getRoleColor(adminData.role)} text-white text-xs`}
+                        className={`${getRoleColor(adminData.role)} text-white text-xs font-medium`}
                       >
                         {adminData.role}
                       </Badge>
@@ -164,17 +168,17 @@ export const AdminHeader: React.FC = () => {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent modal={false} className="bg-white shadow-lg rounded-xl border border-gray-200 max-h-60 overflow-y-auto z-50 min-w-[200px]">
+              <DropdownMenuContent modal={false} className="dropdown-content min-w-[200px]">
                 <div className="p-3 border-b border-gray-100">
-                  <div className="font-semibold text-foreground">{adminData?.username}</div>
-                  <div className="text-sm text-muted-foreground">{adminData?.role}</div>
+                  <div className="font-semibold text-foreground font-heading">{adminData?.username}</div>
+                  <div className="text-sm text-muted-foreground font-medium">{adminData?.role}</div>
                 </div>
-                <DropdownMenuItem className="hover:bg-gray-50">
+                <DropdownMenuItem className="hover:bg-gray-50 font-medium">
                   <Settings className="h-4 w-4 mr-2" />
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="hover:bg-gray-50 text-red-600">
+                <DropdownMenuItem onClick={handleLogout} className="hover:bg-gray-50 text-red-600 font-medium">
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
                 </DropdownMenuItem>
@@ -183,6 +187,6 @@ export const AdminHeader: React.FC = () => {
           </div>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 };

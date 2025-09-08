@@ -166,6 +166,14 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Enhanced typography hierarchy */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.025em;
   }
 
   /* Enhanced scrollbar */
@@ -267,7 +275,7 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
     @apply bg-gradient-to-r from-red-500 to-red-400 text-white shadow-danger;
   }
   
-  /* Animation classes */
+  /* Enhanced animation classes */
   .animate-fade-in {
     animation: fadeIn 0.5s ease-out;
   }
@@ -278,6 +286,24 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
   
   .animate-bounce-in {
     animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  /* Interactive hover effects */
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+
+  .admin-card-hover {
+    @apply transition-all duration-300 hover:shadow-elegant hover:scale-[1.02] hover:-translate-y-1;
+  }
+
+  .pulse-border {
+    @apply animate-pulse-glow;
+  }
+
+  /* Enhanced dropdowns */
+  .dropdown-content {
+    @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-medium rounded-lg z-50 backdrop-blur-sm;
   }
 }
 

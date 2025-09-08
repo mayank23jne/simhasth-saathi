@@ -145,33 +145,41 @@ export const AdminDashboard: React.FC = () => {
       {isOffline && <OfflineBanner />}
       
       <div className="container mx-auto p-4 lg:p-6 space-y-6">
-        {/* Modern Hero Section */}
+        {/* Enhanced Hero Section with improved typography */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-primary text-white p-8 lg:p-12"
+          className="relative overflow-hidden rounded-3xl bg-gradient-primary text-white p-8 lg:p-12 admin-card-hover"
         >
           <div className="absolute inset-0 bg-black/20"></div>
           <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between">
             <div className="text-center lg:text-left mb-6 lg:mb-0">
-              <h1 className="text-3xl lg:text-5xl font-bold mb-4">
+              <h1 className="text-3xl lg:text-5xl font-bold mb-4 font-heading">
                 Control Center
               </h1>
-              <p className="text-white/90 text-lg max-w-2xl">
+              <p className="text-white/90 text-lg max-w-2xl font-medium">
                 Real-time monitoring of {stats.totalPilgrims.toLocaleString()} pilgrims across {stats.totalGroups} groups
               </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge className="bg-white/20 text-white border-white/30">
+                  Live Monitoring
+                </Badge>
+                <Badge className="bg-white/20 text-white border-white/30">
+                  SMS Fallback Ready
+                </Badge>
+              </div>
             </div>
             <div className="flex flex-col items-center lg:items-end space-y-4">
               <Button 
                 onClick={handleRefresh}
                 disabled={isRefreshing}
                 variant="secondary"
-                className="bg-white/20 border-white/30 text-white hover:bg-white/30"
+                className="bg-white/20 border-white/30 text-white hover:bg-white/30 hover-scale font-semibold"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                 Refresh Data
               </Button>
-              <div className="text-center text-white/80 text-sm">
+              <div className="text-center text-white/80 text-sm font-medium">
                 Last updated: {stats.lastUpdate}
               </div>
             </div>
@@ -192,7 +200,7 @@ export const AdminDashboard: React.FC = () => {
                   transition={{ delay: index * 0.05 }}
                   className="group"
                 >
-                  <Card className={`hover-lift bg-white border-2 ${stat.borderColor} shadow-soft hover:shadow-medium group-hover:scale-[1.02] transition-all duration-300 ${stat.isUrgent ? 'ring-2 ring-red-200 animate-pulse' : ''}`}>
+                  <Card className={`hover-lift bg-white border-2 ${stat.borderColor} shadow-soft hover:shadow-elegant group-hover:scale-[1.02] transition-all duration-300 admin-card-hover ${stat.isUrgent ? 'ring-2 ring-red-200 animate-pulse' : ''}`}>
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className={`p-3 rounded-xl ${stat.bgColor} group-hover:scale-110 transition-transform duration-300`}>
@@ -230,15 +238,15 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Enhanced Main Dashboard Content */}
-        <Card className="bg-white border-2 border-gray-100 shadow-medium">
+        <Card className="bg-white border-2 border-gray-100 shadow-elegant admin-card-hover">
           <Tabs defaultValue="overview" className="space-y-0">
             <div className="p-4 lg:p-6 border-b border-gray-100">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
-                  <h2 className="text-xl lg:text-2xl font-bold text-foreground">
+                  <h2 className="text-xl lg:text-2xl font-bold text-foreground font-heading">
                     Control Dashboard
                   </h2>
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-muted-foreground text-sm font-medium">
                     Monitor and manage all safety operations
                   </p>
                 </div>
@@ -303,7 +311,7 @@ export const AdminDashboard: React.FC = () => {
                           transition={{ delay: index * 0.1 }}
                           className="group"
                         >
-                          <Card className="cursor-pointer hover:scale-105 transition-transform duration-200 border-0 shadow-sm hover:shadow-md">
+                          <Card className="cursor-pointer hover:scale-105 transition-transform duration-200 border-0 shadow-soft hover:shadow-elegant admin-card-hover">
                             <CardContent className="p-4 text-center">
                               <div className={`${item.color} w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform`}>
                                 <Icon className="h-6 w-6 text-white" />
@@ -404,14 +412,14 @@ export const AdminDashboard: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="bg-white border-2 border-gray-100 rounded-2xl p-6 shadow-soft"
+          className="bg-white border-2 border-gray-100 rounded-2xl p-6 shadow-elegant admin-card-hover"
         >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-success"></div>
               <div>
-                <div className="font-semibold text-foreground">System Status</div>
-                <div className="text-sm text-muted-foreground">All systems operational</div>
+                <div className="font-semibold text-foreground font-heading">System Status</div>
+                <div className="text-sm text-muted-foreground font-medium">All systems operational</div>
               </div>
             </div>
             
