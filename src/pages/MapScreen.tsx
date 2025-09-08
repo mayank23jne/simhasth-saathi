@@ -347,6 +347,7 @@ const MapScreen: React.FC = () => {
   }, [setUserLocation]);
 const initializedRef = useRef(false);
 const DEFAULT_ZOOM = 16; // default zoom at initialization
+const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movement
 
   // Mount user marker and path once when both map and user location exist
   useEffect(() => {
@@ -642,39 +643,52 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
 
       const memberPath = m.path && Array.isArray(m.path) && m.path.length > 1 ? m.path : null;
 
-      // Prepare road-snapped segment for the latest movement
-      const lastTwo: LatLng[] | null = (() => {
-        if (memberPath && memberPath.length >= 2) return [memberPath[memberPath.length - 2], memberPath[memberPath.length - 1]];
-        if (existing) {
-          const cur = existing.getLatLng();
-          if (m?.position) return [{ lat: cur.lat, lng: cur.lng }, { lat: m.position.lat, lng: m.position.lng }];
-        }
-        return null;
-      })();
-      if (lastTwo) {
-        const key = `${lastTwo[0].lat.toFixed(5)},${lastTwo[0].lng.toFixed(5)}|${lastTwo[1].lat.toFixed(5)},${lastTwo[1].lng.toFixed(5)}`;
-        const prevKey = memberRoadSnapKeyRef.current.get(m.id);
-        if (prevKey !== key) {
-          memberRoadSnapKeyRef.current.set(m.id, key);
-          // Fire and forget; cached in memberRoadPathRef
-          requestRoadSnapForSegment(m.id, lastTwo[0], lastTwo[1]);
+      // Prepare road-snapped segment for the latest movement (skip when disabled)
+      if (!DISABLE_MEMBER_MOVEMENT) {
+        const lastTwo: LatLng[] | null = (() => {
+          if (memberPath && memberPath.length >= 2) return [memberPath[memberPath.length - 2], memberPath[memberPath.length - 1]];
+          if (existing) {
+            const cur = existing.getLatLng();
+            if (m?.position) return [{ lat: cur.lat, lng: cur.lng }, { lat: m.position.lat, lng: m.position.lng }];
+          }
+          return null;
+        })();
+        if (lastTwo) {
+          const key = `${lastTwo[0].lat.toFixed(5)},${lastTwo[0].lng.toFixed(5)}|${lastTwo[1].lat.toFixed(5)},${lastTwo[1].lng.toFixed(5)}`;
+          const prevKey = memberRoadSnapKeyRef.current.get(m.id);
+          if (prevKey !== key) {
+            memberRoadSnapKeyRef.current.set(m.id, key);
+            // Fire and forget; cached in memberRoadPathRef
+            requestRoadSnapForSegment(m.id, lastTwo[0], lastTwo[1]);
+          }
         }
       }
 
       if (existing) {
-        // Prefer road-snapped segment if available; else use member path; else fallback to jitter-filtered step
-        const snapped = memberRoadPathRef.current.get(m.id);
-        if (snapped && snapped.length > 1) {
-          smoothMoveMarkerAlongPath(existing, snapped, memberPathAnimStateRef, m.id, haversine);
-        } else if (memberPath) {
-          smoothMoveMarkerAlongPath(existing, memberPath, memberPathAnimStateRef, m.id, haversine);
+        if (DISABLE_MEMBER_MOVEMENT) {
+          // Cancel any ongoing animations and keep marker static, but update icon
+          const pathAnim = memberPathAnimStateRef.current.get(m.id);
+          if (pathAnim && pathAnim.raf) cancelAnimationFrame(pathAnim.raf);
+          memberPathAnimStateRef.current.delete(m.id);
+          const moveAnim = memberAnimRefs.current.get(existing);
+          if (moveAnim && (moveAnim as any).raf) cancelAnimationFrame((moveAnim as any).raf);
+          memberAnimRefs.current.delete(existing);
+          existing.setIcon(icon);
         } else {
-          const current = existing.getLatLng();
-          const dist = haversine({ lat: current.lat, lng: current.lng }, { lat: m.position.lat, lng: m.position.lng });
-          const target = dist < 6 ? { lat: current.lat, lng: current.lng } : m.position;
-          smoothMoveMarker(existing, target as any, 900, memberAnimRefs.current);
+          // Prefer road-snapped segment if available; else use member path; else fallback to jitter-filtered step
+          const snapped = memberRoadPathRef.current.get(m.id);
+          if (snapped && snapped.length > 1) {
+            smoothMoveMarkerAlongPath(existing, snapped, memberPathAnimStateRef, m.id, haversine);
+          } else if (memberPath) {
+            smoothMoveMarkerAlongPath(existing, memberPath, memberPathAnimStateRef, m.id, haversine);
+          } else {
+            const current = existing.getLatLng();
+            const dist = haversine({ lat: current.lat, lng: current.lng }, { lat: m.position.lat, lng: m.position.lng });
+            const target = dist < 6 ? { lat: current.lat, lng: current.lng } : m.position;
+            smoothMoveMarker(existing, target as any, 900, memberAnimRefs.current);
+          }
+          existing.setIcon(icon);
         }
-        existing.setIcon(icon);
       } else {
         const initialPosition = memberPath && memberPath.length > 0 ? memberPath[0] : m.position;
         const newMarker = L.marker([initialPosition.lat, initialPosition.lng], { icon })
@@ -682,11 +696,13 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
           .bindTooltip(m.name, { permanent: true, direction: 'top', offset: L.point(0, -10) });
         newMarker.on('click', () => setSelectedMember(m));
         cache.set(m.id, newMarker);
-        const snapped = memberRoadPathRef.current.get(m.id);
-        if (snapped && snapped.length > 1) {
-          smoothMoveMarkerAlongPath(newMarker, snapped, memberPathAnimStateRef, m.id, haversine);
-        } else if (memberPath) {
-          smoothMoveMarkerAlongPath(newMarker, memberPath, memberPathAnimStateRef, m.id, haversine);
+        if (!DISABLE_MEMBER_MOVEMENT) {
+          const snapped = memberRoadPathRef.current.get(m.id);
+          if (snapped && snapped.length > 1) {
+            smoothMoveMarkerAlongPath(newMarker, snapped, memberPathAnimStateRef, m.id, haversine);
+          } else if (memberPath) {
+            smoothMoveMarkerAlongPath(newMarker, memberPath, memberPathAnimStateRef, m.id, haversine);
+          }
         }
       }
     });
@@ -1231,7 +1247,7 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
                 variant="outline"
                 size="sm"
                 className="ml-2 h-6 px-2 text-xs border-warning text-warning hover:bg-warning hover:text-warning-foreground"
-                onClick={() => { setShowGeofenceAlert(false); setGeofenceBreachName(null); }}
+                onClick={handleViewGeofenceBreach}
               >
                 {t('viewMap')}
               </Button>
