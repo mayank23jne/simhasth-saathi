@@ -180,6 +180,9 @@ const MapScreen: React.FC = () => {
     pathId: string; // To detect if the path itself has changed
   }>>(new Map());
 
+  // Frozen positions for members when movement is disabled
+  const frozenMemberPosRef = useRef<Map<string, LatLng>>(new Map());
+
   // Geofencing for group
   const groupGeofenceCircleRef = useRef<L.Circle | null>(null);
   const geofenceCenterRef = useRef<L.LatLng | null>(null);
@@ -673,6 +676,14 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
           const moveAnim = memberAnimRefs.current.get(existing);
           if (moveAnim && (moveAnim as any).raf) cancelAnimationFrame((moveAnim as any).raf);
           memberAnimRefs.current.delete(existing);
+          // Snap marker to frozen position
+          let frozen = frozenMemberPosRef.current.get(m.id);
+          if (!frozen) {
+            const cur = existing.getLatLng();
+            frozen = { lat: cur.lat, lng: cur.lng };
+            frozenMemberPosRef.current.set(m.id, frozen);
+          }
+          existing.setLatLng([frozen.lat, frozen.lng]);
           existing.setIcon(icon);
         } else {
           // Prefer road-snapped segment if available; else use member path; else fallback to jitter-filtered step
@@ -696,6 +707,10 @@ const DISABLE_MEMBER_MOVEMENT = true; // Temporarily freeze group member movemen
           .bindTooltip(m.name, { permanent: true, direction: 'top', offset: L.point(0, -10) });
         newMarker.on('click', () => setSelectedMember(m));
         cache.set(m.id, newMarker);
+        // Store frozen position upon creation
+        if (!frozenMemberPosRef.current.has(m.id)) {
+          frozenMemberPosRef.current.set(m.id, { lat: initialPosition.lat, lng: initialPosition.lng });
+        }
         if (!DISABLE_MEMBER_MOVEMENT) {
           const snapped = memberRoadPathRef.current.get(m.id);
           if (snapped && snapped.length > 1) {
