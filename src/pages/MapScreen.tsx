@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { StatusIndicator } from '@/components/ui/status-indicator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MapContainer, TileLayer } from 'react-leaflet';
-import { getBestRoute } from '@/lib/routing';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
@@ -141,12 +140,6 @@ const MapScreen: React.FC = () => {
   const [showGeofenceAlert, setShowGeofenceAlert] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any | null>(null);
-  const [geofenceAlerts, setGeofenceAlerts] = useState<Array<{id: string, member: string, timestamp: number}>>([]);
-  const [safeZones, setSafeZones] = useState([
-    { id: 'zone1', name: 'मुख्य घाट क्षेत्र', center: { lat: 23.1765, lng: 75.7884 }, radius: 500 },
-    { id: 'zone2', name: 'महाकाल मंदिर परिसर', center: { lat: 23.1825, lng: 75.7685 }, radius: 300 },
-  ]);
-  const [showRouteOptions, setShowRouteOptions] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userMarkerElRef = useRef<HTMLElement | null>(null);
@@ -172,24 +165,6 @@ const MapScreen: React.FC = () => {
   const infoButtonRef = useRef<HTMLButtonElement | null>(null);
   const memberAnimRefs = useRef<Map<L.Marker, { raf?: number }>>(new Map());
 
-  // Geofence state/refs
-  const [geofenceCenter, setGeofenceCenter] = useState<{ lat: number; lng: number } | null>(null);
-  const [geofenceRadiusMeters, setGeofenceRadiusMeters] = useState<number>(200);
-  const geofenceCircleRef = useRef<L.Circle | null>(null);
-  const geofenceCenterMarkerRef = useRef<L.CircleMarker | null>(null);
-  const geofenceLockedRef = useRef<boolean>(false);
-  const [outOfFenceIds, setOutOfFenceIds] = useState<Set<string>>(new Set());
-  const lastAlertedAtRef = useRef<Map<string, number>>(new Map());
-  const alertChannelRef = useRef<BroadcastChannel | null>(null);
-
-  // Demo simulation (frontend-only)
-  const ENABLE_DEMO_SIMULATION = true;
-  const demoMemberIdRef = useRef<string | null>(null);
-  const demoBearingRef = useRef<number>(45); // degrees
-  const demoOverridePosRef = useRef<Map<string, LatLng>>(new Map());
-  const demoIntervalRef = useRef<number | null>(null);
-  const [simTick, setSimTick] = useState(0);
-
   // New refs for robust routing
   const osrmRoutingControlRef = useRef<any>(null);
   const fallbackRouteLineRef = useRef<L.Polyline | null>(null);
@@ -203,6 +178,15 @@ const MapScreen: React.FC = () => {
     segmentDuration: number;
     pathId: string; // To detect if the path itself has changed
   }>>(new Map());
+
+  // Geofencing for group
+  const groupGeofenceCircleRef = useRef<L.Circle | null>(null);
+  const geofenceCenterRef = useRef<L.LatLng | null>(null);
+  const geofenceRadiusRef = useRef<number>(0);
+  const lastOutsideSetRef = useRef<Set<string>>(new Set());
+  const [geofenceBreachName, setGeofenceBreachName] = useState<string | null>(null);
+  const [geofenceVersion, setGeofenceVersion] = useState<number>(0);
+  const [geofenceBreachMemberId, setGeofenceBreachMemberId] = useState<string | null>(null);
 
   // Static help centers
   const helpCenters = useMemo(() => ([
@@ -242,7 +226,7 @@ const MapScreen: React.FC = () => {
     const rotation = headingDeg ?? 0;
     const html = `
       <div class="direction-icon-wrapper" style="position: relative; will-change: transform; transform: rotate(${rotation}deg);">
-        ${highlight ? '<div style="position:absolute; left:50%; top:50%; width:36px; height:36px; transform: translate(-50%, -50%); border-radius:50%; box-shadow: 0 0 0 6px rgba(37,99,235,0.20), 0 0 12px 4px rgba(37,99,235,0.25); animation: pulseGlow 1.2s ease-in-out infinite;"></div>' : ''}
+        ${highlight ? '<div style="position:absolute; left:50%; top:50%; width:36px; height:36px; transform: translate(-50%, -50%); border-radius:50%; box-shadow: 0 0 0 6px rgba(37,99,235,0.20), 0 0 12px 4px rgba(37,99,235,0.25);"></div>' : ''}
         <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <g>
             <polygon points="12,2 20,22 12,18 4,22" fill="${color}" stroke="white" stroke-width="2" />
@@ -250,40 +234,6 @@ const MapScreen: React.FC = () => {
         </svg>
       </div>`;
     return L.divIcon({ html, className: 'direction-icon', iconSize: [24, 24], iconAnchor: [12, 12] });
-  }, []);
-
-  // small inline CSS for blinking glow (scoped to map usage)
-  useEffect(() => {
-    const styleId = 'mapscreen-inline-anim';
-    if (document.getElementById(styleId)) return;
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.innerHTML = `@keyframes pulseGlow { 0% { opacity: .8 } 50% { opacity: .2 } 100% { opacity: .8 } }`;
-    document.head.appendChild(style);
-    return () => {
-      const el = document.getElementById(styleId);
-      if (el) document.head.removeChild(el);
-    };
-  }, []);
-
-  // BroadcastChannel: simulate broadcasting alerts to all open tabs (frontend-only)
-  useEffect(() => {
-    try {
-      const ch = new BroadcastChannel('simhastha-geofence');
-      alertChannelRef.current = ch;
-      ch.onmessage = (ev) => {
-        if (!ev?.data) return;
-        const { type, payload } = ev.data || {};
-        if (type === 'geofence-alert' && payload?.id && payload?.member) {
-          setGeofenceAlerts((prev) => [...prev, { id: payload.id, member: payload.member, timestamp: Date.now() }]);
-          setShowGeofenceAlert(true);
-          toast.error(`${payload.member} exited the safe area`);
-        }
-      };
-      return () => { ch.close(); };
-    } catch {
-      // ignore if not supported
-    }
   }, []);
 
   // Smoothly animate rotation without recreating the icon to avoid flicker
@@ -360,144 +310,6 @@ const MapScreen: React.FC = () => {
   }, [setUserLocation]);
 const initializedRef = useRef(false);
 const DEFAULT_ZOOM = 16; // default zoom at initialization
-
-  // Compute and fix geofence center once when data is available
-  const computeGroupCenter = useCallback((): { lat: number; lng: number } | null => {
-    const points: LatLng[] = [];
-    for (const m of members as any[]) {
-      if (m?.position?.lat != null && m?.position?.lng != null) {
-        points.push({ lat: m.position.lat, lng: m.position.lng });
-      }
-    }
-    if (userLocation) points.push({ lat: userLocation.lat, lng: userLocation.lng });
-    if (points.length === 0) return null;
-    const sum = points.reduce((acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }), { lat: 0, lng: 0 });
-    return { lat: sum.lat / points.length, lng: sum.lng / points.length };
-  }, [members, userLocation]);
-
-  useEffect(() => {
-    if (!mapRef.current) return;
-    if (geofenceLockedRef.current) return;
-    const center = computeGroupCenter();
-    if (!center) return;
-    setGeofenceCenter(center);
-    geofenceLockedRef.current = true; // lock for demo stability; can be relaxed later
-  }, [computeGroupCenter]);
-
-  // Draw or update the geofence circle and center marker
-  useEffect(() => {
-    if (!mapRef.current || !geofenceCenter) return;
-    const map = mapRef.current;
-    if (!geofenceCircleRef.current) {
-      geofenceCircleRef.current = L.circle([geofenceCenter.lat, geofenceCenter.lng], {
-        radius: geofenceRadiusMeters,
-        color: '#0ea5e9',
-        weight: 2,
-        fillColor: '#0ea5e9',
-        fillOpacity: 0.08,
-        interactive: false,
-      }).addTo(map);
-    } else {
-      geofenceCircleRef.current.setLatLng([geofenceCenter.lat, geofenceCenter.lng]);
-      geofenceCircleRef.current.setRadius(geofenceRadiusMeters);
-    }
-
-    if (!geofenceCenterMarkerRef.current) {
-      geofenceCenterMarkerRef.current = L.circleMarker([geofenceCenter.lat, geofenceCenter.lng], {
-        radius: 4,
-        color: '#0ea5e9',
-        weight: 2,
-        fillColor: '#0ea5e9',
-        fillOpacity: 0.8,
-        interactive: false,
-      }).addTo(map);
-    } else {
-      geofenceCenterMarkerRef.current.setLatLng([geofenceCenter.lat, geofenceCenter.lng]);
-    }
-  }, [geofenceCenter, geofenceRadiusMeters]);
-
-  // Build display members list to allow local demo overrides
-  const displayMembers = useMemo(() => {
-    if (!members || members.length === 0) return [] as any[];
-    const overrides = demoOverridePosRef.current;
-    return (members as any[]).map((m) => {
-      const override = overrides.get(m.id);
-      if (override) {
-        return { ...m, position: { lat: override.lat, lng: override.lng } };
-      }
-      return m;
-    });
-  }, [members, simTick]);
-
-  // Geofence breach detection and alerts
-  useEffect(() => {
-    if (!geofenceCenter) return;
-    const outside = new Set<string>();
-    for (const m of displayMembers as any[]) {
-      if (m?.isSelf) continue;
-      if (!m?.position?.lat || !m?.position?.lng) continue;
-      const dist = haversine(geofenceCenter, { lat: m.position.lat, lng: m.position.lng });
-      if (dist > geofenceRadiusMeters) {
-        outside.add(m.id);
-        const last = lastAlertedAtRef.current.get(m.id) || 0;
-        const now = Date.now();
-        if (now - last > 15000) { // throttle alerts per member
-          lastAlertedAtRef.current.set(m.id, now);
-          setGeofenceAlerts((prev) => [...prev, { id: m.id, member: m.name || 'Member', timestamp: now }]);
-          setShowGeofenceAlert(true);
-          toast.error(`${m.name || 'Member'} exited the safe area`);
-          // Broadcast to other tabs (frontend-only simulation)
-          try { alertChannelRef.current?.postMessage({ type: 'geofence-alert', payload: { id: m.id, member: m.name || 'Member' } }); } catch {}
-        }
-      }
-    }
-    setOutOfFenceIds(outside);
-  }, [displayMembers, geofenceCenter, geofenceRadiusMeters, haversine]);
-
-  // Demo: move one member outside geofence over time (frontend-only)
-  const movePointByMeters = useCallback((origin: LatLng, bearingDeg: number, meters: number): LatLng => {
-    const R = 6371000; // meters
-    const brng = (bearingDeg * Math.PI) / 180;
-    const lat1 = (origin.lat * Math.PI) / 180;
-    const lng1 = (origin.lng * Math.PI) / 180;
-    const angDist = meters / R;
-    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(angDist) + Math.cos(lat1) * Math.sin(angDist) * Math.sin(brng));
-    const lng2 = lng1 + Math.atan2(Math.sin(brng) * Math.sin(angDist) * Math.cos(lat1), Math.cos(angDist) - Math.sin(lat1) * Math.sin(lat2));
-    return { lat: (lat2 * 180) / Math.PI, lng: (lng2 * 180) / Math.PI };
-  }, []);
-
-  useEffect(() => {
-    if (!ENABLE_DEMO_SIMULATION) return;
-    if (!geofenceCenter) return;
-    if (demoIntervalRef.current) return;
-    const candidates = (members as any[]).filter((m) => !m.isSelf && m?.position?.lat != null && m?.position?.lng != null);
-    if (candidates.length === 0) return;
-    const chosen = candidates[0];
-    demoMemberIdRef.current = chosen.id;
-    // start inside the geofence (~60% radius from center) then walk outward
-    const bearing = Math.floor(Math.random() * 360);
-    demoBearingRef.current = bearing;
-    const startInside = movePointByMeters(geofenceCenter, bearing, Math.max(geofenceRadiusMeters * 0.6, 30));
-    demoOverridePosRef.current.set(chosen.id, startInside);
-    setSimTick((v) => v + 1);
-
-    const stepMeters = Math.max(geofenceRadiusMeters / 30, 8); // finer steps for smoother motion
-    const interval = window.setInterval(() => {
-      const id = demoMemberIdRef.current;
-      if (!id) return;
-      const curr = demoOverridePosRef.current.get(id) || startInside;
-      const next = movePointByMeters(curr, demoBearingRef.current, stepMeters);
-      demoOverridePosRef.current.set(id, next);
-      setSimTick((v) => v + 1);
-    }, 300);
-    demoIntervalRef.current = interval as any as number;
-    return () => {
-      if (demoIntervalRef.current) {
-        window.clearInterval(demoIntervalRef.current);
-        demoIntervalRef.current = null;
-      }
-    };
-  }, [ENABLE_DEMO_SIMULATION, geofenceCenter, members, geofenceRadiusMeters, movePointByMeters]);
 
   // Mount user marker and path once when both map and user location exist
   useEffect(() => {
@@ -604,6 +416,42 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
 
     const bounds = L.latLngBounds(positions);
     mapRef.current.fitBounds(bounds.pad(0.2), { animate: true } as any);
+
+    // Establish or update group geofence based on current group spread
+    try {
+      const centerLat = positions.reduce((acc, p) => acc + p[0], 0) / positions.length;
+      const centerLng = positions.reduce((acc, p) => acc + p[1], 0) / positions.length;
+      const center = L.latLng(centerLat, centerLng);
+      let maxDist = 0;
+      for (const [lat, lng] of positions) {
+        const d = haversine({ lat, lng }, { lat: centerLat, lng: centerLng });
+        if (d > maxDist) maxDist = d;
+      }
+      const radius = Math.max(150, maxDist * 1.15); // meters, with buffer
+
+      geofenceCenterRef.current = center;
+      geofenceRadiusRef.current = radius;
+
+      if (mapRef.current) {
+        const map = mapRef.current;
+        if (groupGeofenceCircleRef.current && map.hasLayer(groupGeofenceCircleRef.current)) {
+          groupGeofenceCircleRef.current.setLatLng(center);
+          groupGeofenceCircleRef.current.setRadius(radius);
+        } else {
+          groupGeofenceCircleRef.current = L.circle(center, {
+            radius,
+            color: '#f59e0b',
+            weight: 2,
+            fillColor: '#f59e0b',
+            fillOpacity: 0.08,
+            interactive: false,
+          }).addTo(map);
+        }
+        setGeofenceVersion(v => v + 1);
+      }
+    } catch {
+      // ignore geofence calc errors
+    }
   }, [members, userLocation]);
 
   const handleMarkerClick = useCallback((member: any) => () => setSelectedMember(member), []);
@@ -707,39 +555,9 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
           .openOn(map);
       };
 
-      // Always show a fallback route immediately (straight line)
+      // Always show a fallback route immediately
       drawFallbackRoute();
-      // Try to get a provider route asynchronously and upgrade the path/popup when available
-      (async () => {
-        try {
-          const best = await getBestRoute({ lat: userPos.lat, lng: userPos.lng }, { lat: memberPos.lat, lng: memberPos.lng });
-          if (best && best.coordinates.length >= 2) {
-            // If we already have an OSRM control, leave it (it will render its own line).
-            // Otherwise, replace the straight line with provider polyline for visual fidelity.
-            if (!osrmRoutingControlRef.current) {
-              if (fallbackRouteLineRef.current && map.hasLayer(fallbackRouteLineRef.current)) {
-                map.removeLayer(fallbackRouteLineRef.current);
-                fallbackRouteLineRef.current = null;
-              }
-              const coords = best.coordinates.map(p => L.latLng(p.lat, p.lng));
-              // Render as a high-quality canvas polyline
-              fallbackRouteLineRef.current = L.polyline(coords, { color: '#2563eb', weight: 5, opacity: 0.9, renderer: L.canvas() }).addTo(map);
-              const totalDistM = best.distanceMeters ?? map.distance(coords[0], coords[coords.length - 1]);
-              const etaSec = best.durationSeconds ?? Math.round((totalDistM / 1.4));
-              const etaMin = Math.max(1, Math.round(etaSec / 60));
-              const mid = coords[Math.floor(coords.length / 2)];
-              if (!fallbackRoutePopupRef.current) fallbackRoutePopupRef.current = L.popup();
-              fallbackRoutePopupRef.current
-                .setLatLng(mid)
-                .setContent(`<div><strong>${(totalDistM / 1000).toFixed(2)} km</strong> • ${etaMin} min</div>`)
-                .openOn(map);
-            }
-          }
-        } catch {
-          // Ignore; straight line already shown.
-        }
-      })();
-      // Also attempt to create OSRM control; if it succeeds, it will replace the fallback
+      // Then try to get the OSRM route
       createOrUpdateRoutingControl();
 
       // Fit bounds only when a new member is selected
@@ -767,11 +585,22 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
     const map = mapRef.current;
     const cache = memberMarkersRef.current;
     const presentIds = new Set<string>();
-    (displayMembers as any[]).filter(m => !m.isSelf).forEach((m) => {
+    members.filter(m => !m.isSelf).forEach((m) => {
       presentIds.add(m.id);
       const isSelected = !!(selectedMember && selectedMember.id === m.id);
-      const isOutside = outOfFenceIds.has(m.id);
-      const icon = buildDirectionalIcon(isOutside ? '#ef4444' : '#16a34a', m.headingDeg, isSelected || isOutside);
+      // Decide color based on geofence
+      const center = geofenceCenterRef.current;
+      const radius = geofenceRadiusRef.current;
+      let isOutside = false;
+      if (center && radius && m?.position) {
+        const dist = haversine(
+          { lat: m.position.lat, lng: m.position.lng },
+          { lat: center.lat, lng: center.lng }
+        );
+        isOutside = dist > radius;
+      }
+      const color = isOutside ? '#ef4444' : '#16a34a';
+      const icon = buildDirectionalIcon(color, m.headingDeg, isSelected);
       const existing = cache.get(m.id);
 
       const memberPath = m.path && Array.isArray(m.path) && m.path.length > 1 ? m.path : null;
@@ -781,7 +610,7 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
         if (memberPath) {
           smoothMoveMarkerAlongPath(existing, memberPath, memberPathAnimStateRef, m.id, haversine);
         } else {
-          smoothMoveMarker(existing, m.position, 280, memberAnimRefs.current);
+          smoothMoveMarker(existing, m.position, 600, memberAnimRefs.current);
         }
         existing.setIcon(icon);
       } else {
@@ -809,7 +638,7 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
         }
       }
     }
-  }, [displayMembers, members, buildDirectionalIcon, mapMode, haversine, selectedMember, outOfFenceIds]);
+  }, [members, buildDirectionalIcon, mapMode, haversine, geofenceVersion]);
 
   // Clear selected member by clicking on the map background
   useEffect(() => {
@@ -828,7 +657,7 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
     const map = mapRef.current;
 
     // Resolve current selected member from live members array
-    const selected = selectedMember ? (displayMembers as any[]).find(m => m.id === selectedMember.id) : null;
+    const selected = selectedMember ? members.find(m => m.id === selectedMember.id) : null;
     const userPos = userLocation ? L.latLng(userLocation.lat, userLocation.lng) : null;
     const memberPos = selected ? L.latLng(selected.position.lat, selected.position.lng) : null;
 
@@ -855,19 +684,109 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
       }
       lastFitForMemberIdRef.current = null;
     }
-  }, [selectedMember, displayMembers, userLocation, updateLiveRoute]);
+  }, [selectedMember, members, userLocation, updateLiveRoute]);
+
+  // Initialize geofence circle once when in groups mode and none exists
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (mapMode !== 'groups') return;
+    if (groupGeofenceCircleRef.current) return; // keep baseline until user refocuses group
+    const map = mapRef.current;
+    const positions: { lat: number; lng: number }[] = [];
+    members.forEach((m: any) => {
+      if (m?.position?.lat != null && m?.position?.lng != null) {
+        positions.push({ lat: m.position.lat, lng: m.position.lng });
+      }
+    });
+    if (userLocation) positions.push({ lat: userLocation.lat, lng: userLocation.lng });
+    if (positions.length === 0) return;
+
+    try {
+      const centerLat = positions.reduce((acc, p) => acc + p.lat, 0) / positions.length;
+      const centerLng = positions.reduce((acc, p) => acc + p.lng, 0) / positions.length;
+      const center = L.latLng(centerLat, centerLng);
+      let maxDist = 0;
+      for (const p of positions) {
+        const d = haversine({ lat: p.lat, lng: p.lng }, { lat: centerLat, lng: centerLng });
+        if (d > maxDist) maxDist = d;
+      }
+      const radius = Math.max(60, maxDist * 1.15);
+
+      geofenceCenterRef.current = center;
+      geofenceRadiusRef.current = radius;
+
+      groupGeofenceCircleRef.current = L.circle(center, {
+        radius,
+        color: '#f59e0b',
+        weight: 2,
+        fillColor: '#f59e0b',
+        fillOpacity: 0.08,
+        interactive: false,
+      }).addTo(map);
+      setGeofenceVersion(v => v + 1);
+    } catch {
+      // ignore
+    }
+  }, [members, userLocation, haversine, mapMode]);
+
+  // Cleanup geofence when leaving groups mode
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (mapMode !== 'groups') {
+      if (groupGeofenceCircleRef.current && map.hasLayer(groupGeofenceCircleRef.current)) {
+        map.removeLayer(groupGeofenceCircleRef.current);
+      }
+      groupGeofenceCircleRef.current = null;
+      geofenceCenterRef.current = null;
+      geofenceRadiusRef.current = 0;
+      lastOutsideSetRef.current.clear();
+    }
+  }, [mapMode]);
+
+  // Detect geofence breach: alert when any member moves outside
+  useEffect(() => {
+    const center = geofenceCenterRef.current;
+    const radius = geofenceRadiusRef.current;
+    if (!center || !radius) return;
+
+    const newlyOutside: Set<string> = new Set();
+    let breachName: string | null = null;
+    let breachId: string | null = null;
+    for (const m of members as any[]) {
+      if (!m?.position) continue;
+      const dist = haversine(
+        { lat: m.position.lat, lng: m.position.lng },
+        { lat: center.lat, lng: center.lng }
+      );
+      if (dist > radius) {
+        newlyOutside.add(m.id);
+        if (!lastOutsideSetRef.current.has(m.id) && !breachName) {
+          breachName = m.name || 'Member';
+          breachId = m.id;
+        }
+      }
+    }
+
+    if (breachName) {
+      setGeofenceBreachName(breachName);
+      setGeofenceBreachMemberId(breachId);
+      setShowGeofenceAlert(true);
+    }
+    lastOutsideSetRef.current = newlyOutside;
+  }, [members, haversine]);
 
   // Keep route updated as positions change (debounced)
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
-    const selected = selectedMemberRef.current ? (displayMembers as any[]).find(m => m.id === selectedMemberRef.current.id) : null;
+    const selected = selectedMemberRef.current ? members.find(m => m.id === selectedMemberRef.current.id) : null;
     if (!selected) return;
     if (!userLocation) return;
     const userPos = L.latLng(userLocation.lat, userLocation.lng);
     const memberPos = L.latLng(selected.position.lat, selected.position.lng);
     updateLiveRoute(map, userPos, memberPos, selected.id);
-  }, [userLocation, displayMembers, updateLiveRoute]);
+  }, [userLocation, members, updateLiveRoute]);
 
   // Center/highlight based on hint from other screens (e.g., SOS "View on Map")
   useEffect(() => {
@@ -1183,6 +1102,42 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
     setMapMode('helpdesk', { id: center.id, name: center.name, lat: center.lat, lng: center.lng });
   }, [userLocation, members, findNearestHelpCenter, setMapMode]);
 
+  // Focus/zoom to latest breaching member and highlight
+  const handleViewGeofenceBreach = useCallback(() => {
+    try {
+      if (!mapRef.current) return;
+      if (!geofenceBreachMemberId) return;
+      const map = mapRef.current;
+      // ensure group mode to show members
+      setMapMode('groups');
+
+      const latest = members.find((m: any) => m.id === geofenceBreachMemberId);
+      if (!latest || !latest.position) return;
+
+      const latlng = L.latLng(latest.position.lat, latest.position.lng);
+      map.flyTo(latlng, Math.max(map.getZoom(), 19));
+
+      // temporary highlight pulse
+      const highlight = L.circleMarker(latlng, {
+        radius: 12,
+        color: '#ef4444',
+        fillColor: '#ef4444',
+        fillOpacity: 0.45,
+        weight: 2,
+      }).addTo(map);
+      setTimeout(() => {
+        if (map.hasLayer(highlight)) map.removeLayer(highlight);
+      }, 4000);
+
+      // also select the member to show tooltip/history
+      setSelectedMember(latest);
+    } finally {
+      setShowGeofenceAlert(false);
+      setGeofenceBreachName(null);
+      setGeofenceBreachMemberId(null);
+    }
+  }, [members, geofenceBreachMemberId, setMapMode]);
+
   return (
     <>
     <div className="flex flex-col h-[83vh] bg-background">
@@ -1203,24 +1158,15 @@ const DEFAULT_ZOOM = 16; // default zoom at initialization
       {/* Geofence Alert */}
       {showGeofenceAlert && (
         <div className="p-4">
-          <Alert className="border-warning">
+          <Alert className="border-warning bg-warning/10">
             <AlertCircle className="h-4 w-4 text-warning" />
-            <AlertDescription className="text-primary">
-              {(geofenceAlerts[geofenceAlerts.length - 1]?.member || 'Member')} exited the safe area
+            <AlertDescription className="text-warning-foreground">
+              {(geofenceBreachName || 'Member')} {t('safe')} क्षेत्र से बाहर गए हैं
               <Button
                 variant="outline"
                 size="sm"
-                className="ml-2 h-6 px-2 text-xs border-warning text-warning hover:bg-warning hover:text-warning-foreground"
-                onClick={() => {
-                  const last = geofenceAlerts[geofenceAlerts.length - 1];
-                  if (!last) { setShowGeofenceAlert(false); return; }
-                  const m = (displayMembers as any[]).find(mm => mm.id === last.id);
-                  if (m && mapRef.current) {
-                    setSelectedMember(m);
-                    mapRef.current.flyTo([m.position.lat, m.position.lng], Math.max(mapRef.current.getZoom(), 18));
-                  }
-                  setShowGeofenceAlert(false);
-                }}
+                className="ml-2 h-7 px-3 text-[12px] border-warning text-warning hover:bg-warning hover:text-warning-foreground focus:ring-2 focus:ring-offset-1 focus:ring-warning"
+                onClick={handleViewGeofenceBreach}
               >
                 {t('viewMap')}
               </Button>
