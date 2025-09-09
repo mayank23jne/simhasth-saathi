@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, Users, Eye } from 'lucide-react';
+import { Shield, Users, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslation } from '@/context/TranslationContext';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -78,7 +79,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = () => {
               >
                 <Shield className="h-10 w-10 text-white drop-shadow-lg" />
               </motion.div>
-              <div className="absolute bg-card/90 rounded-md !rounded-bl-0 p-1 shadow-soft backdrop-blur-sm left-[0px] top-[-59px]">
+              <div className="absolute bg-card/90 rounded-md !rounded-bl-0 p-1 shadow-soft backdrop-blur-sm left-[0px] top-[0px]">
                 <img
                   src={hackathonBadge}
                   alt="Hackathon Badge"
@@ -101,7 +102,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = () => {
           </CardHeader>
           
           <CardContent className="space-y-6">
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleLogin} className="space-y-5 sm:space-y-6">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -115,6 +116,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = () => {
                   placeholder="Enter username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
                   className="h-12 bg-white/50 border-white/20 backdrop-blur-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                 />
               </motion.div>
@@ -126,14 +128,25 @@ export const AdminLogin: React.FC<AdminLoginProps> = () => {
                 className="space-y-2"
               >
                 <Label htmlFor="password" className="font-medium">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 bg-white/50 border-white/20 backdrop-blur-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    className="h-12 pr-10 bg-white/50 border-white/20 backdrop-blur-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </motion.div>
               
               <motion.div

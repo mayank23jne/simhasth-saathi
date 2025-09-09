@@ -98,12 +98,17 @@ export const AnalyticsSection: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const hasHourly = data.hourlyAlerts.length > 0;
+  const hasResponse = data.responseTime.length > 0;
+  const hasGroupStats = data.groupStats.length > 0;
+  const hasAlertTypes = data.alertTypes.some(a => a.count > 0);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Header */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-green-500" />
@@ -114,8 +119,8 @@ export const AnalyticsSection: React.FC = () => {
               </CardDescription>
             </div>
             
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+              <div className="flex gap-1 w-full sm:w-auto">
                 {(['24h', '7d', '30d'] as const).map((range) => (
                   <Button
                     key={range}
@@ -127,7 +132,7 @@ export const AnalyticsSection: React.FC = () => {
                   </Button>
                 ))}
               </div>
-              <Button size="sm" variant="outline" onClick={exportData}>
+              <Button size="sm" variant="outline" onClick={exportData} className="w-full sm:w-auto whitespace-nowrap shrink-0">
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
@@ -137,7 +142,7 @@ export const AnalyticsSection: React.FC = () => {
       </Card>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
             title: 'Total Alerts',
@@ -181,7 +186,7 @@ export const AnalyticsSection: React.FC = () => {
               transition={{ delay: index * 0.1 }}
             >
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">{metric.title}</p>
@@ -202,7 +207,7 @@ export const AnalyticsSection: React.FC = () => {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Hourly Alerts Chart */}
         <Card>
           <CardHeader>
@@ -210,16 +215,22 @@ export const AnalyticsSection: React.FC = () => {
             <CardDescription>Hourly breakdown of alerts received and resolved</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.hourlyAlerts}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="alerts" fill="#ef4444" name="Alerts" isAnimationActive={false} />
-                <Bar dataKey="resolved" fill="#10b981" name="Resolved" isAnimationActive={false} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-64 sm:h-72 lg:h-80">
+              {hasHourly ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.hourlyAlerts} margin={{ top: 8, right: 12, bottom: 16, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="hour" tick={{ fontSize: 11 }} interval="preserveEnd" minTickGap={8} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+                    <Bar dataKey="alerts" fill="#ef4444" name="Alerts" isAnimationActive={false} barSize={14} />
+                    <Bar dataKey="resolved" fill="#10b981" name="Resolved" isAnimationActive={false} barSize={14} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">No data</div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -230,22 +241,29 @@ export const AnalyticsSection: React.FC = () => {
             <CardDescription>Average response time over the past week</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={data.responseTime}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="avgTime" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  name="Avg Time (min)"
-                  isAnimationActive={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="h-64 sm:h-72 lg:h-80">
+              {hasResponse ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data.responseTime} margin={{ top: 8, right: 12, bottom: 16, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveEnd" minTickGap={8} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip cursor={{ stroke: 'rgba(0,0,0,0.15)' }} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="avgTime" 
+                      stroke="#3b82f6" 
+                      strokeWidth={3}
+                      name="Avg Time (min)"
+                      isAnimationActive={false}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">No data</div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -256,15 +274,21 @@ export const AnalyticsSection: React.FC = () => {
             <CardDescription>Groups and members by zone</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.groupStats} layout="horizontal">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="zone" width={100} />
-                <Tooltip />
-                <Bar dataKey="groups" fill="#8b5cf6" name="Groups" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-64 sm:h-72 lg:h-80">
+              {hasGroupStats ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.groupStats} layout="horizontal" margin={{ top: 8, right: 12, bottom: 16, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="zone" width={72} tick={{ fontSize: 11 }} />
+                    <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+                    <Bar dataKey="groups" fill="#8b5cf6" name="Groups" barSize={14} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">No data</div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -275,38 +299,80 @@ export const AnalyticsSection: React.FC = () => {
             <CardDescription>Breakdown of alert categories</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={data.alertTypes}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ type, percent }) => `${type}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                  isAnimationActive={false}
-                >
-                  {data.alertTypes.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="h-64 sm:h-72 lg:h-80">
+              {hasAlertTypes ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart margin={{ top: 8, right: 12, bottom: 16, left: 8 }}>
+                    <Pie
+                      data={data.alertTypes}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ type, percent }) => `${type}: ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={90}
+                      fill="#8884d8"
+                      dataKey="count"
+                      isAnimationActive={false}
+                    >
+                      {data.alertTypes.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">No data</div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Summary Table */}
+      {/* Summary (Responsive) */}
       <Card>
         <CardHeader>
           <CardTitle>Zone Performance Summary</CardTitle>
           <CardDescription>Detailed breakdown by geographical zones</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Mobile stacked list */}
+          <div className="space-y-3 md:hidden">
+            {data.groupStats.map((zone, index) => (
+              <motion.div
+                key={zone.zone}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="p-3 border rounded-lg"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-semibold">{zone.zone}</div>
+                  <Badge className="bg-green-500 text-white">Active</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Groups</span>
+                    <span className="font-medium">{zone.groups}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Members</span>
+                    <span className="font-medium">{zone.members}</span>
+                  </div>
+                  <div className="flex items-center justify-between col-span-2">
+                    <span className="text-muted-foreground">Avg Group Size</span>
+                    <span className="font-medium">{Math.round(zone.members / zone.groups)}</span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+            {data.groupStats.length === 0 && (
+              <div className="text-center py-6 text-muted-foreground text-sm">No zones available</div>
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
@@ -323,7 +389,7 @@ export const AnalyticsSection: React.FC = () => {
                     key={zone.zone}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: index * 0.05 }}
                     className="border-b hover:bg-muted/50"
                   >
                     <td className="p-2 font-medium">{zone.zone}</td>

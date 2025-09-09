@@ -22,6 +22,7 @@ interface ResponsiveTableProps {
     variant?: 'default' | 'destructive' | 'outline';
   }>;
   onRowClick?: (row: Record<string, any>) => void;
+  loading?: boolean;
 }
 
 export const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
@@ -30,7 +31,8 @@ export const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
   data,
   columns,
   actions,
-  onRowClick
+  onRowClick,
+  loading
 }) => {
   return (
     <Card className="w-full">
@@ -39,6 +41,13 @@ export const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
         {description && <p className="text-sm text-muted-foreground">{description}</p>}
       </CardHeader>
       <CardContent>
+        {loading && (
+          <div className="space-y-2 mb-4">
+            <div className="h-8 w-full bg-muted/50 rounded animate-pulse" />
+            <div className="h-8 w-11/12 bg-muted/50 rounded animate-pulse" />
+            <div className="h-8 w-10/12 bg-muted/50 rounded animate-pulse" />
+          </div>
+        )}
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <Table>
@@ -53,18 +62,20 @@ export const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((row, index) => (
+              {(!loading ? data : Array.from({ length: 5 }, (_, i) => ({ __skeleton: i }))).map((row, index) => (
                 <motion.tr
                   key={index}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.05 }}
                   className={`hover:bg-muted/50 ${onRowClick ? 'cursor-pointer' : ''}`}
-                  onClick={() => onRowClick?.(row)}
+                  onClick={() => !('__skeleton' in row) && onRowClick?.(row)}
                 >
                   {columns.map((column) => (
                     <TableCell key={column.key}>
-                      {column.render 
+                      {'__skeleton' in row ? (
+                        <div className="h-4 w-3/4 bg-muted/50 rounded animate-pulse" />
+                      ) : column.render 
                         ? column.render(row[column.key], row)
                         : row[column.key]
                       }
@@ -73,7 +84,7 @@ export const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
                   {actions && actions.length > 0 && (
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
-                        {actions.map((action, actionIndex) => {
+                        {!loading && actions.map((action, actionIndex) => {
                           const Icon = action.icon;
                           return (
                             <Button
@@ -100,22 +111,24 @@ export const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
 
         {/* Mobile Cards */}
         <div className="md:hidden space-y-3">
-          {data.map((row, index) => (
+          {(!loading ? data : Array.from({ length: 4 }, (_, i) => ({ __skeleton: i }))).map((row, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               className={`p-4 border rounded-lg space-y-3 ${onRowClick ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-              onClick={() => onRowClick?.(row)}
+              onClick={() => !('__skeleton' in row) && onRowClick?.(row)}
             >
               {columns.map((column) => (
-                <div key={column.key} className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-muted-foreground">
+                <div key={column.key} className="grid grid-cols-3 gap-2 items-start">
+                  <span className="col-span-1 text-xs font-medium text-muted-foreground">
                     {column.label}
                   </span>
-                  <span className="text-sm font-semibold">
-                    {column.render 
+                  <span className="col-span-2 text-sm font-semibold break-words">
+                    {'__skeleton' in row ? (
+                      <div className="h-4 w-5/6 bg-muted/50 rounded animate-pulse" />
+                    ) : column.render 
                       ? column.render(row[column.key], row)
                       : row[column.key]
                     }
@@ -125,7 +138,7 @@ export const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
               
               {actions && actions.length > 0 && (
                 <div className="flex gap-2 pt-2 border-t">
-                  {actions.map((action, actionIndex) => {
+                  {!loading && actions.map((action, actionIndex) => {
                     const Icon = action.icon;
                     return (
                       <Button
@@ -155,7 +168,7 @@ export const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
           ))}
         </div>
 
-        {data.length === 0 && (
+        {!loading && data.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <p>No data available</p>
           </div>

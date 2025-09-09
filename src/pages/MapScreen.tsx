@@ -167,6 +167,8 @@ const MapScreen: React.FC = () => {
   const directionalIconCacheRef = useRef<Map<string, L.DivIcon>>(new Map());
   // Track last icon key per member to avoid redundant setIcon
   const memberIconKeyRef = useRef<Map<string, string>>(new Map());
+  // Force one member to remain outside geofence
+  const forcedOutsideMemberIdRef = useRef<string | null>(null);
 
   // New refs for robust routing
   const osrmRoutingControlRef = useRef<any>(null);
@@ -193,6 +195,8 @@ const MapScreen: React.FC = () => {
   const [geofenceBreachName, setGeofenceBreachName] = useState<string | null>(null);
   const [geofenceVersion, setGeofenceVersion] = useState<number>(0);
   const [geofenceBreachMemberId, setGeofenceBreachMemberId] = useState<string | null>(null);
+  const geofenceUpdateDebounceRef = useRef<number | null>(null);
+  const geofencePositionsHashRef = useRef<string | null>(null);
 
   // Help centers were used for a button that's currently commented out. Keeping logic minimal below.
 
@@ -347,19 +351,22 @@ const MapScreen: React.FC = () => {
   }, [setUserLocation]);
 const initializedRef = useRef(false);
 const DEFAULT_ZOOM = 16; // default zoom at initialization
-const DISABLE_MEMBER_MOVEMENT = false; // Enable smooth group member movement
+const DISABLE_MEMBER_MOVEMENT = true; // Enable smooth group member movement
+const DISABLE_USER_MOVEMENT = true; // Disable self/user marker movement
 const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
-  // Mount user marker and path once when both map and user location exist
+  // Mount user marker and (optionally) path once when both map and user location exist
   useEffect(() => {
     if (!mapRef.current || !userLocation || userMarkerRef.current) return;
     const marker = L.marker([userLocation.lat, userLocation.lng], { icon: buildDirectionalIcon('#2563eb', lastHeadingRef.current) }).addTo(mapRef.current);
     userMarkerRef.current = marker;
     userMarkerElRef.current = marker.getElement() as HTMLElement | null;
-    const path = L.polyline([[userLocation.lat, userLocation.lng]], {
-      color: '#2563eb', weight: 4, opacity: 0.7, renderer: L.canvas(),
-    }).addTo(mapRef.current);
-    userPathRef.current = path;
+    if (!DISABLE_USER_MOVEMENT) {
+      const path = L.polyline([[userLocation.lat, userLocation.lng]], {
+        color: '#2563eb', weight: 4, opacity: 0.7, renderer: L.canvas(),
+      }).addTo(mapRef.current);
+      userPathRef.current = path;
+    }
     // initial view without changing zoom level drastically
     mapRef.current.setView([userLocation.lat, userLocation.lng], mapRef.current.getZoom());
   }, [userLocation, buildDirectionalIcon]);
@@ -369,6 +376,15 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     if (!mapRef.current || !userLocation) return;
     const map = mapRef.current;
 
+    // If user movement is disabled, only set initial view once and skip animations/updates
+    if (DISABLE_USER_MOVEMENT) {
+      if (!initializedRef.current) {
+        map.setView([userLocation.lat, userLocation.lng], DEFAULT_ZOOM);
+        initializedRef.current = true;
+      }
+      return;
+    }
+
     if (userMarkerRef.current) {
       smoothMoveMarker(userMarkerRef.current, userLocation, 280, userAnimRefs.current);
       // rotate smoothly between previous and latest heading
@@ -376,7 +392,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
       const fromHeading = prevHeadingRef.current;
       animateHeadingRotation(fromHeading, toHeading, 260);
     }
-    if (userPathRef.current) {
+    if (!DISABLE_USER_MOVEMENT && userPathRef.current) {
       userPathRef.current.addLatLng([userLocation.lat, userLocation.lng]);
       // Cap the number of path points to avoid memory/render bloat
       const latlngs = userPathRef.current.getLatLngs() as unknown as L.LatLng[];
@@ -392,10 +408,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
       return;
     }
 
-    // auto-pan only if marker is near edge
+    // auto-pan only if marker is near edge (skip when user movement disabled)
     const bounds = map.getBounds();
     const latlng = L.latLng(userLocation.lat, userLocation.lng);
-    if (!bounds.pad(-0.3).contains(latlng)) {
+    if (!DISABLE_USER_MOVEMENT && !bounds.pad(-0.3).contains(latlng)) {
       map.panTo(latlng, { animate: true });
     }
   }, [userLocation, buildDirectionalIcon, animateHeadingRotation]);
@@ -448,9 +464,11 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     if (!mapRef.current) return;
 
     const positions: [number, number][] = [];
+    const candidates: { id: string; lat: number; lng: number }[] = [];
     members.forEach((m: any) => {
       if (m?.position?.lat != null && m?.position?.lng != null) {
         positions.push([m.position.lat, m.position.lng]);
+        if (!m.isSelf) candidates.push({ id: m.id, lat: m.position.lat, lng: m.position.lng });
       }
     });
     if (userLocation) {
@@ -458,20 +476,46 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     }
     if (positions.length === 0) return;
 
+    // Select/refresh forced-outside as farthest non-self from centroid
+    try {
+      if (candidates.length > 0) {
+        const centerLat0 = positions.reduce((acc, p) => acc + p[0], 0) / positions.length;
+        const centerLng0 = positions.reduce((acc, p) => acc + p[1], 0) / positions.length;
+        const farthest = candidates.reduce((best: { id: string; dist: number } | null, cur) => {
+          const d = haversine({ lat: cur.lat, lng: cur.lng }, { lat: centerLat0, lng: centerLng0 });
+          if (!best || d > best.dist) return { id: cur.id, dist: d };
+          return best;
+        }, null);
+        if (!forcedOutsideMemberIdRef.current || !candidates.some(c => c.id === forcedOutsideMemberIdRef.current)) {
+          forcedOutsideMemberIdRef.current = farthest?.id ?? candidates[0].id;
+        }
+      }
+    } catch {}
+
+    // Fit bounds to all members + user (visual context), but compute geofence excluding forced-outside
     const bounds = L.latLngBounds(positions);
     mapRef.current.fitBounds(bounds.pad(0.2), { animate: true } as any);
 
     // Establish or update group geofence based on current group spread
     try {
-      const centerLat = positions.reduce((acc, p) => acc + p[0], 0) / positions.length;
-      const centerLng = positions.reduce((acc, p) => acc + p[1], 0) / positions.length;
+      const filteredPositions: [number, number][] = [];
+      members.forEach((m: any) => {
+        if (m?.position?.lat != null && m?.position?.lng != null) {
+          if (forcedOutsideMemberIdRef.current && m.id === forcedOutsideMemberIdRef.current) return;
+          filteredPositions.push([m.position.lat, m.position.lng]);
+        }
+      });
+      if (userLocation) filteredPositions.push([userLocation.lat, userLocation.lng]);
+      const base = filteredPositions.length > 0 ? filteredPositions : positions;
+      const centerLat = base.reduce((acc, p) => acc + p[0], 0) / base.length;
+      const centerLng = base.reduce((acc, p) => acc + p[1], 0) / base.length;
       const center = L.latLng(centerLat, centerLng);
       let maxDist = 0;
-      for (const [lat, lng] of positions) {
+      for (const [lat, lng] of base) {
         const d = haversine({ lat, lng }, { lat: centerLat, lng: centerLng });
         if (d > maxDist) maxDist = d;
       }
-      const radius = Math.max(150, maxDist * 1.15); // meters, with buffer
+      const radius = Math.max(20, maxDist * 1.15); // meters, with buffer
 
       geofenceCenterRef.current = center;
       geofenceRadiusRef.current = radius;
@@ -631,6 +675,8 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     const presentIds = new Set<string>();
     members.filter(m => !m.isSelf).forEach((m) => {
       presentIds.add(m.id);
+      // choose or keep a forced-outside member id consistently
+      if (!forcedOutsideMemberIdRef.current) forcedOutsideMemberIdRef.current = m.id;
       const isSelected = !!(selectedMember && selectedMember.id === m.id);
       // Decide color based on geofence
       const center = geofenceCenterRef.current;
@@ -641,7 +687,8 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           { lat: m.position.lat, lng: m.position.lng },
           { lat: center.lat, lng: center.lng }
         );
-        isOutside = dist > radius;
+        const isForcedOutside = forcedOutsideMemberIdRef.current && m.id === forcedOutsideMemberIdRef.current;
+        isOutside = dist > radius || isForcedOutside;
       }
       const color = isOutside ? '#ef4444' : '#16a34a';
       const iconKey = `${color}|${typeof m.headingDeg === 'number' ? Math.round(m.headingDeg / 5) * 5 : 0}|${isSelected ? 1 : 0}`;
@@ -688,10 +735,14 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
             frozenMemberPosRef.current.set(m.id, frozen);
           }
           existing.setLatLng([frozen.lat, frozen.lng]);
+          // Keep icon static while movement is disabled, but reflect geofence color (red outside)
+          const staticColor = isOutside ? '#ef4444' : '#16a34a';
+          const staticIconKey = `${staticColor}|0|${isSelected ? 1 : 0}`;
           const prevKey = memberIconKeyRef.current.get(m.id);
-          if (prevKey !== iconKey) {
-            existing.setIcon(icon);
-            memberIconKeyRef.current.set(m.id, iconKey);
+          if (prevKey !== staticIconKey) {
+            const staticIcon = getDirectionalIcon(staticColor, 0, isSelected);
+            existing.setIcon(staticIcon);
+            memberIconKeyRef.current.set(m.id, staticIconKey);
           }
         } else {
           // Prefer road-snapped segment if available; else use member path; else fallback to jitter-filtered step
@@ -713,13 +764,18 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           }
         }
       } else {
-        const initialPosition = memberPath && memberPath.length > 0 ? memberPath[0] : m.position;
-        const newMarker = L.marker([initialPosition.lat, initialPosition.lng], { icon })
+        const initialPosition = DISABLE_MEMBER_MOVEMENT
+          ? m.position
+          : (memberPath && memberPath.length > 0 ? memberPath[0] : m.position);
+        // When disabled, set icon color based on geofence (red outside), static heading
+        const frozenIcon = DISABLE_MEMBER_MOVEMENT ? getDirectionalIcon(color, 0, isSelected) : icon;
+        const newMarker = L.marker([initialPosition.lat, initialPosition.lng], { icon: frozenIcon })
           .addTo(map)
           .bindTooltip(m.name, { permanent: true, direction: 'top', offset: L.point(0, -10) });
         newMarker.on('click', () => setSelectedMember(m));
         cache.set(m.id, newMarker);
-        memberIconKeyRef.current.set(m.id, iconKey);
+        const newIconKey = DISABLE_MEMBER_MOVEMENT ? `${color}|0|${isSelected ? 1 : 0}` : iconKey;
+        memberIconKeyRef.current.set(m.id, newIconKey);
         // Store frozen position upon creation
         if (!frozenMemberPosRef.current.has(m.id)) {
           frozenMemberPosRef.current.set(m.id, { lat: initialPosition.lat, lng: initialPosition.lng });
@@ -871,47 +927,88 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     }
   }, [selectedMember, members, userLocation, updateLiveRoute]);
 
-  // Initialize geofence circle once when in groups mode and none exists
+  // Keep geofence synced with current positions in groups mode (debounced to avoid jitter)
   useEffect(() => {
     if (!mapRef.current) return;
     if (mapMode !== 'groups') return;
-    if (groupGeofenceCircleRef.current) return; // keep baseline until user refocuses group
     const map = mapRef.current;
-    const positions: { lat: number; lng: number }[] = [];
-    members.forEach((m: any) => {
+
+    const allPositions: { id?: string; lat: number; lng: number }[] = [];
+    const candidates: { id: string; lat: number; lng: number }[] = [];
+    for (const m of members as any[]) {
       if (m?.position?.lat != null && m?.position?.lng != null) {
-        positions.push({ lat: m.position.lat, lng: m.position.lng });
+        allPositions.push({ id: m.id, lat: m.position.lat, lng: m.position.lng });
+        if (!m.isSelf) candidates.push({ id: m.id, lat: m.position.lat, lng: m.position.lng });
       }
-    });
+    }
+    if (userLocation) allPositions.push({ lat: userLocation.lat, lng: userLocation.lng });
+    if (allPositions.length === 0) return;
+
+    // Choose farthest forced-outside when needed
+    try {
+      if (candidates.length > 0) {
+        const centerLat0 = allPositions.reduce((acc, p) => acc + p.lat, 0) / allPositions.length;
+        const centerLng0 = allPositions.reduce((acc, p) => acc + p.lng, 0) / allPositions.length;
+        const farthest = candidates.reduce((best: { id: string; dist: number } | null, cur) => {
+          const d = haversine({ lat: cur.lat, lng: cur.lng }, { lat: centerLat0, lng: centerLng0 });
+          if (!best || d > best.dist) return { id: cur.id, dist: d };
+          return best;
+        }, null);
+        if (!forcedOutsideMemberIdRef.current || !candidates.some(c => c.id === forcedOutsideMemberIdRef.current)) {
+          forcedOutsideMemberIdRef.current = farthest?.id ?? candidates[0].id;
+        }
+      }
+    } catch {}
+
+    const positions = allPositions.filter(p => !p.id || p.id !== forcedOutsideMemberIdRef.current).map(p => ({ lat: p.lat, lng: p.lng }));
     if (userLocation) positions.push({ lat: userLocation.lat, lng: userLocation.lng });
     if (positions.length === 0) return;
 
-    try {
-      const centerLat = positions.reduce((acc, p) => acc + p.lat, 0) / positions.length;
-      const centerLng = positions.reduce((acc, p) => acc + p.lng, 0) / positions.length;
-      const center = L.latLng(centerLat, centerLng);
-      let maxDist = 0;
-      for (const p of positions) {
-        const d = haversine({ lat: p.lat, lng: p.lng }, { lat: centerLat, lng: centerLng });
-        if (d > maxDist) maxDist = d;
-      }
-      const radius = Math.max(60, maxDist * 1.15);
+    const hash = positions
+      .map(p => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`)
+      .sort()
+      .join('|');
+    if (geofencePositionsHashRef.current === hash) return;
 
-      geofenceCenterRef.current = center;
-      geofenceRadiusRef.current = radius;
-
-      groupGeofenceCircleRef.current = L.circle(center, {
-        radius,
-        color: '#f59e0b',
-        weight: 2,
-        fillColor: '#f59e0b',
-        fillOpacity: 0.08,
-        interactive: false,
-      }).addTo(map);
-      setGeofenceVersion(v => v + 1);
-    } catch {
-      // ignore
+    if (geofenceUpdateDebounceRef.current) {
+      window.clearTimeout(geofenceUpdateDebounceRef.current);
+      geofenceUpdateDebounceRef.current = null;
     }
+
+    geofenceUpdateDebounceRef.current = window.setTimeout(() => {
+      try {
+        const centerLat = positions.reduce((acc, p) => acc + p.lat, 0) / positions.length;
+        const centerLng = positions.reduce((acc, p) => acc + p.lng, 0) / positions.length;
+        const center = L.latLng(centerLat, centerLng);
+        let maxDist = 0;
+        for (const p of positions) {
+          const d = haversine({ lat: p.lat, lng: p.lng }, { lat: centerLat, lng: centerLng });
+          if (d > maxDist) maxDist = d;
+        }
+        const radius = Math.max(60, maxDist * 1.15);
+
+        geofenceCenterRef.current = center;
+        geofenceRadiusRef.current = radius;
+
+        if (groupGeofenceCircleRef.current && map.hasLayer(groupGeofenceCircleRef.current)) {
+          groupGeofenceCircleRef.current.setLatLng(center);
+          groupGeofenceCircleRef.current.setRadius(radius);
+        } else {
+          groupGeofenceCircleRef.current = L.circle(center, {
+            radius,
+            color: '#f59e0b',
+            weight: 2,
+            fillColor: '#f59e0b',
+            fillOpacity: 0.08,
+            interactive: false,
+          }).addTo(map);
+        }
+        geofencePositionsHashRef.current = hash;
+        setGeofenceVersion(v => v + 1);
+      } catch {
+        // ignore calc errors
+      }
+    }, 150);
   }, [members, userLocation, haversine, mapMode]);
 
   // Cleanup geofence when leaving groups mode
@@ -926,6 +1023,11 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
       geofenceCenterRef.current = null;
       geofenceRadiusRef.current = 0;
       lastOutsideSetRef.current.clear();
+      geofencePositionsHashRef.current = null;
+      if (geofenceUpdateDebounceRef.current) {
+        window.clearTimeout(geofenceUpdateDebounceRef.current);
+        geofenceUpdateDebounceRef.current = null;
+      }
     }
   }, [mapMode]);
 
@@ -944,7 +1046,8 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
         { lat: m.position.lat, lng: m.position.lng },
         { lat: center.lat, lng: center.lng }
       );
-      if (dist > radius) {
+      const isForcedOutside = forcedOutsideMemberIdRef.current && m.id === forcedOutsideMemberIdRef.current;
+      if (dist > radius || isForcedOutside) {
         newlyOutside.add(m.id);
         if (!lastOutsideSetRef.current.has(m.id) && !breachName) {
           breachName = m.name || 'Member';
@@ -1317,7 +1420,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
   return (
     <>
-    <div className="flex flex-col h-[83vh] bg-background">
+    <div className="flex flex-col h-[80vh] bg-background">
       {/* Status Panel */}
       <div className="px-4 py-3 bg-card border-b border-card-border">
         <div className="flex items-center justify-between">

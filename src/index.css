@@ -424,10 +424,10 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
     @apply cursor-pointer transition-all duration-300 hover:shadow-elegant hover:scale-[1.02] hover:-translate-y-1;
   }
   
-  .card-subtle {
+  /* .card-subtle {
     @apply transition-all duration-200 hover:shadow-medium hover:bg-card-hover;
   }
-  
+   */
   /* Status indicators */
   .status-safe {
     @apply bg-gradient-to-r from-green-500 to-green-400 text-white shadow-success;
@@ -505,6 +505,36 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
     @apply skeleton h-10 w-24 rounded-lg;
   }
   
+  /* SOS UI utilities */
+  .sos-overlay {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-md z-[1200] flex items-center justify-center;
+  }
+  
+  .countdown-digit {
+    font-size: 64px;
+    font-weight: 800;
+    line-height: 1;
+    animation: digitPop 300ms ease-out;
+    background: linear-gradient(180deg, hsl(var(--destructive)), hsl(var(--warning)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 8px 32px hsl(var(--danger-red) / 0.3);
+  }
+  
+  .sos-halo, .sos-halo-2 {
+    position: absolute;
+    inset: -16px;
+    border-radius: 9999px;
+    background: radial-gradient(closest-side, hsl(var(--destructive) / 0.25), transparent 70%);
+    filter: blur(2px);
+    animation: haloPulse 1.8s ease-out infinite;
+  }
+  
+  .sos-halo-2 {
+    animation-delay: 0.9s;
+  }
+  
   /* Device-specific optimizations */
   @media (max-width: 640px) {
     .mobile-full-width {
@@ -546,6 +576,29 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* SOS animations */
+@keyframes haloPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes digitPop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 

@@ -8,7 +8,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
-import { Bell, User, LogOut, Settings, Globe, Wifi, WifiOff } from 'lucide-react';
+import { Bell, User, LogOut, Settings, Globe, Wifi, WifiOff, Menu } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/context/TranslationContext';
 import { toast } from 'sonner';
@@ -108,7 +109,7 @@ export const AdminHeader: React.FC = () => {
               </div>
             </div>
 
-            {/* Network Status */}
+            {/* Network Status (desktop) */}
             <Button
               variant="ghost"
               size="sm"
@@ -122,7 +123,7 @@ export const AdminHeader: React.FC = () => {
               )}
             </Button>
 
-            {/* Language Selector */}
+            {/* Language Selector (desktop) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="hidden md:flex hover-scale">
@@ -140,7 +141,7 @@ export const AdminHeader: React.FC = () => {
             </DropdownMenu>
 
             {/* Notifications */}
-            <Button variant="ghost" size="sm" className="relative hover-scale">
+            <Button variant="ghost" size="sm" className="relative hover-scale hidden md:inline-flex">
               <Bell className="h-4 w-4" />
               {notifications > 0 && (
                 <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0 bg-red-500 text-white pulse-border">
@@ -149,10 +150,10 @@ export const AdminHeader: React.FC = () => {
               )}
             </Button>
 
-            {/* Enhanced User Menu */}
+            {/* Enhanced User Menu (desktop) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-2 hover:bg-gray-50 hover-scale">
+                <Button variant="ghost" size="sm" className="hidden md:flex items-center gap-2 hover:bg-gray-50 hover-scale">
                   <div className="h-8 w-8 bg-gradient-primary rounded-full flex items-center justify-center shadow-elegant">
                     <User className="h-4 w-4 text-white" />
                   </div>
@@ -184,6 +185,62 @@ export const AdminHeader: React.FC = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Mobile Menu */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="md:hidden">
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-72 sm:w-80">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-2 border-b">
+                    <div className="h-10 w-10 bg-gradient-primary rounded-full flex items-center justify-center">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">{adminData?.username || 'Admin'}</div>
+                      <Badge className={`${getRoleColor(adminData?.role || 'admin')} text-white text-xs font-medium`}>
+                        {adminData?.role || 'admin'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="ghost" onClick={toggleOfflineMode} className="justify-start">
+                      {isOnline ? <Wifi className="h-4 w-4 mr-2 text-green-500" /> : <WifiOff className="h-4 w-4 mr-2 text-red-500" />}
+                      {isOnline ? 'Go Offline' : 'Go Online'}
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1" onClick={() => setLanguage('en')}>EN</Button>
+                      <Button variant="outline" className="flex-1" onClick={() => setLanguage('hi')}>HI</Button>
+                    </div>
+                  </div>
+
+                  <Button variant="ghost" className="justify-start relative">
+                    <Bell className="h-4 w-4 mr-2" />
+                    Notifications
+                    {notifications > 0 && (
+                      <Badge className="ml-auto h-5 w-5 flex items-center justify-center text-xs p-0 bg-red-500 text-white">
+                        {notifications}
+                      </Badge>
+                    )}
+                  </Button>
+
+                  <div className="pt-2 border-t">
+                    <Button variant="ghost" className="justify-start">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Settings
+                    </Button>
+                    <Button variant="destructive" className="justify-start w-full mt-1" onClick={handleLogout}>
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Logout
+                    </Button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>

@@ -136,7 +136,7 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
   return (
     <div className={`grid ${expanded ? 'grid-cols-1 gap-6' : 'lg:grid-cols-3 gap-6'}`}>
       {/* Map Area (Leaflet) */}
-      <Card className={`${expanded ? 'h-96' : 'lg:col-span-2 h-96'} border-2 border-blue-100 shadow-medium hover:shadow-lg transition-shadow`}>
+      <Card className={`${expanded ? '' : 'lg:col-span-2'} border-2 border-blue-100 shadow-medium hover:shadow-lg transition-shadow`}>
         <CardHeader className="bg-gradient-to-r from-blue-50 to-sky-50 rounded-t-lg">
           <CardTitle className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -151,7 +151,7 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="w-full h-64 rounded-lg overflow-hidden relative">
+          <div className="w-full h-56 sm:h-64 md:h-72 lg:h-80 rounded-lg overflow-hidden relative">
             <MapContainer
               center={[23.1765, 75.7884]}
               zoom={13}
@@ -215,7 +215,7 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-3 overflow-y-scroll h-[15.5rem]">
+        <CardContent className="space-y-3 overflow-y-scroll h-56 sm:h-64 md:h-[15.5rem]">
           {filteredGroups.map((group, index) => (
             <motion.div
               key={group.id}
@@ -289,6 +289,13 @@ export const GroupMapView: React.FC<GroupMapViewProps> = ({ expanded = false }) 
               )}
             </motion.div>
           ))}
+
+          {filteredGroups.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Search className="h-10 w-10 mx-auto mb-2 opacity-20" />
+              <p>No groups match your search</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

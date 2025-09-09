@@ -299,9 +299,9 @@ export const AdminDashboard: React.FC = () => {
                   </div> */}
 
                   {/* SOS & Crowd Alerts */}
-                  <div className="flex justify-between gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <motion.div
-                      className="w-1/2"
+                      className="order-2 md:order-1"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 }}
@@ -309,7 +309,7 @@ export const AdminDashboard: React.FC = () => {
                       <SOSAlertsPanel />
                     </motion.div>
                     <motion.div
-                      className="w-1/2"
+                      className="order-1 md:order-2"
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 }}
@@ -342,7 +342,7 @@ export const AdminDashboard: React.FC = () => {
               </TabsContent>
 
               <TabsContent value="analytics" className="mt-0">
-                <AnalyticsSection />
+                {activeTab === 'analytics' && <AnalyticsSection />}
               </TabsContent>
             </div>
           </Tabs>

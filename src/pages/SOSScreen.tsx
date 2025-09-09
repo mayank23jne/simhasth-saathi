@@ -24,6 +24,10 @@ const SOSScreen = () => {
   const [actionFlash, setActionFlash] = useState<Record<string, 'responded' | 'resolved' | 'viewed' | undefined>>({});
   const addMarker = useAppStore(s => s.addMarker);
   const [alertMeta, setAlertMeta] = useState<Record<string, { lat: number; lng: number; area?: string }>>({});
+  const [confirmCountdown, setConfirmCountdown] = useState<number | null>(null);
+  const countdownIntervalRef = React.useRef<number | null>(null);
+  const sendTimeoutRef = React.useRef<number | null>(null);
+  const INITIAL_COUNTDOWN = 5;
 
   // Robust last-known location resolver for self; prefers live userLocation, then member.position, then last path point, then mapCenter, then default
   const getSelfLastLocation = (): { lat: number; lng: number } | null => {
@@ -66,22 +70,77 @@ const SOSScreen = () => {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [setUserLocation]);
 
-  const handleSOSPress = () => {
-    if (isEmergency) return;
+  // Cleanup timers on unmount
+  React.useEffect(() => {
+    return () => {
+      if (countdownIntervalRef.current != null) {
+        window.clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      if (sendTimeoutRef.current != null) {
+        window.clearTimeout(sendTimeoutRef.current);
+        sendTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
+  const doSendSOS = () => {
     setIsEmergency(true);
     setShowConfirmation(true);
-
+    navigator.vibrate?.([200, 100, 200, 100, 400]);
     const newAlert = triggerSOS();
     const selfLoc = getSelfLastLocation();
     if (selfLoc) {
       setAlertMeta((prev) => ({ ...prev, [newAlert.id]: { lat: selfLoc.lat, lng: selfLoc.lng } }));
     }
-
-    window.setTimeout(() => {
+    sendTimeoutRef.current = window.setTimeout(() => {
       updateSOS(newAlert.id, { status: 'responded', responder: 'Volunteer Team' });
       setIsEmergency(false);
     }, 3000);
+  };
+
+  const handleCancelSOS = () => {
+    if (countdownIntervalRef.current != null) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setConfirmCountdown(null);
+    setShowConfirmation(false);
+    setIsEmergency(false);
+    navigator.vibrate?.(0);
+  };
+
+  const handleSendNow = () => {
+    if (countdownIntervalRef.current != null) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setConfirmCountdown(null);
+    doSendSOS();
+  };
+
+  const handleSOSPress = () => {
+    if (isEmergency || confirmCountdown !== null) return;
+    setShowConfirmation(true);
+    setConfirmCountdown(INITIAL_COUNTDOWN);
+    navigator.vibrate?.([100, 50, 100]);
+    countdownIntervalRef.current = window.setInterval(() => {
+      setConfirmCountdown((prev) => {
+        if (prev == null) return null;
+        const next = prev - 1;
+        if (next > 0) {
+          navigator.vibrate?.(50);
+          return next;
+        }
+        if (countdownIntervalRef.current != null) {
+          window.clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+        setConfirmCountdown(null);
+        doSendSOS();
+        return null;
+      });
+    }, 1000);
   };
 
   const handleOpenVolunteer = () => setVolunteerOpen(true);
@@ -183,19 +242,78 @@ const SOSScreen = () => {
 
   return (
     <div className="flex flex-col bg-background">
+      {confirmCountdown !== null && (() => {
+        const ringSize = 180;
+        const ringStroke = 10;
+        const ringRadius = (ringSize - ringStroke) / 2;
+        const ringCircumference = 2 * Math.PI * ringRadius;
+        const progress = (INITIAL_COUNTDOWN - confirmCountdown) / INITIAL_COUNTDOWN;
+        const ringOffset = ringCircumference * (1 - progress);
+        return (
+          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 backdrop-blur-md">
+            <div className="relative w-full max-w-sm mx-4 p-6 rounded-2xl bg-card border border-border shadow-strong animate-bounce-in">
+              <div className="flex flex-col items-center">
+                <div className="relative">
+                  <svg width={ringSize} height={ringSize} className="block">
+                    <circle
+                      stroke="hsl(var(--border))"
+                      fill="transparent"
+                      strokeWidth={ringStroke}
+                      r={ringRadius}
+                      cx={ringSize / 2}
+                      cy={ringSize / 2}
+                    />
+                    <circle
+                      stroke="hsl(var(--destructive))"
+                      fill="transparent"
+                      strokeWidth={ringStroke}
+                      strokeLinecap="round"
+                      r={ringRadius}
+                      cx={ringSize / 2}
+                      cy={ringSize / 2}
+                      strokeDasharray={ringCircumference}
+                      strokeDashoffset={ringOffset}
+                      className="transition-all duration-1000 ease-linear"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div key={confirmCountdown} className="countdown-digit">
+                      {confirmCountdown}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-center text-sm text-muted-foreground">
+                  {(t('sosSending') || 'Sending SOS')} in {confirmCountdown}s...
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 w-full">
+                  <Button variant="outline" onClick={handleCancelSOS}>{t('cancel') || 'Cancel'}</Button>
+                  <Button onClick={handleSendNow} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                    {t('sendNow') || 'Send now'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       <div className="px-lg py-xl space-y-lg">
         {/* SOS Button */}
         <div className="flex-1 flex items-center justify-center py-2xl">
           <div className="text-center">
+            <div className="relative inline-block">
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <span className="sos-halo" />
+                <span className="sos-halo-2" />
+              </div>
             <Button
               size="lg"
-              className={`w-40 h-40 rounded-full text-xl font-bold shadow-strong transition-all duration-300 ${
+                className={`relative z-[1] w-40 h-40 rounded-full text-xl font-bold shadow-strong shadow-glow transition-bounce ${
                 isEmergency 
                   ? 'bg-destructive hover:bg-destructive animate-pulse scale-110' 
                   : 'bg-destructive hover:bg-destructive/90 hover:scale-105'
               }`}
               onClick={handleSOSPress}
-              disabled={isEmergency}
+                disabled={isEmergency || confirmCountdown !== null}
             >
               <div className="flex flex-col items-center gap-sm">
                 <AlertTriangle className="h-12 w-12" />
@@ -203,6 +321,7 @@ const SOSScreen = () => {
                 <span className="text-sm font-normal">{t('sosEmergency')}</span>
               </div>
             </Button>
+            </div>
             <p className="mt-lg text-sm text-muted-foreground max-w-xs mx-auto">
               {t('sosSubtitle')}
             </p>
@@ -214,7 +333,20 @@ const SOSScreen = () => {
           <Alert className="border-success bg-success/10">
             <Shield className="h-4 w-4 text-success" />
             <AlertDescription className="text-success">
-              {isEmergency ? (
+              {confirmCountdown !== null ? (
+                <div className="flex items-center justify-between gap-sm">
+                  <div className="flex items-center gap-sm">
+                    <div className="animate-pulse">⚠️</div>
+                    <span>
+                      {t('sosSending') || 'Sending SOS'} in {confirmCountdown}s... {t('tapToCancel') || 'Tap cancel to stop'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-xs">
+                    <Button size="sm" variant="outline" onClick={handleCancelSOS}>{t('cancel') || 'Cancel'}</Button>
+                    <Button size="sm" onClick={handleSendNow}>{t('sendNow') || 'Send now'}</Button>
+                  </div>
+                </div>
+              ) : isEmergency ? (
                 <div className="flex items-center gap-sm">
                   <div className="animate-pulse">⚡</div>
                   {t('sosSending')}
