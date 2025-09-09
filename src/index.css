@@ -90,24 +90,37 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
     --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     
-    /* Touch-friendly sizing */
-    --touch-target: 44px;            /* Minimum touch target size */
-    --button-height: 48px;           /* Optimized button height */
-    --nav-height: 70px;              /* Compact bottom navigation */
+  /* Touch-friendly sizing - Mobile First */
+  --touch-target: 48px;            /* Enhanced touch target for better accessibility */
+  --button-height: 52px;           /* Increased button height for mobile comfort */
+  --nav-height: 80px;              /* Enhanced navigation height */
+  --input-height: 56px;            /* Comfortable input height */
+  --header-height: 64px;           /* Standard header height */
     
-    /* Enhanced Border radius */
-    --radius: 12px;                  /* Consistent radius */
-    --radius-large: 16px;            /* Cards radius */
-    --radius-xl: 20px;               /* Large elements */
-    --radius-full: 9999px;           /* Fully rounded */
+  /* Enhanced Border radius - Responsive */
+  --radius: 8px;                   /* Mobile-friendly radius */
+  --radius-md: 12px;               /* Medium radius */
+  --radius-large: 16px;            /* Cards radius */
+  --radius-xl: 20px;               /* Large elements */
+  --radius-2xl: 24px;              /* Extra large elements */
+  --radius-full: 9999px;           /* Fully rounded */
     
-    /* Compact spacing system */
-    --space-xs: 4px;
-    --space-sm: 8px;
-    --space-md: 12px;
-    --space-lg: 16px;
-    --space-xl: 20px;
-    --space-2xl: 24px;
+  /* Responsive spacing system */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-4xl: 40px;
+  --space-5xl: 48px;
+  
+  /* Mobile specific spacing */
+  --mobile-padding: 16px;
+  --mobile-margin: 12px;
+  --tablet-padding: 24px;
+  --desktop-padding: 32px;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -167,6 +180,15 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    /* Enhanced mobile optimization */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Touch optimization */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    /* Improved scrolling */
+    overscroll-behavior: none;
   }
 
   /* Enhanced typography hierarchy */
@@ -196,8 +218,114 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
   }
 }
 
-/* Beautiful utility classes */
+/* Enhanced responsive and accessibility utilities */
 @layer utilities {
+  /* Mobile-first responsive containers */
+  .container-mobile {
+    @apply w-full px-4 mx-auto;
+  }
+  
+  .container-tablet {
+    @apply max-w-3xl px-6 mx-auto;
+  }
+  
+  .container-desktop {
+    @apply max-w-7xl px-8 mx-auto;
+  }
+  
+  /* Touch-friendly interactive elements */
+  .touch-target {
+    @apply min-h-[48px] min-w-[48px] flex items-center justify-center;
+  }
+  
+  .touch-button {
+    @apply touch-target rounded-lg transition-all duration-200 active:scale-95;
+  }
+  
+  /* Enhanced focus states for accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+  
+  .focus-visible-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+  
+  /* Responsive text sizes */
+  .text-responsive-xs {
+    @apply text-xs sm:text-sm;
+  }
+  
+  .text-responsive-sm {
+    @apply text-sm sm:text-base;
+  }
+  
+  .text-responsive-base {
+    @apply text-base sm:text-lg;
+  }
+  
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl md:text-2xl;
+  }
+  
+  .text-responsive-xl {
+    @apply text-xl sm:text-2xl md:text-3xl;
+  }
+  
+  .text-responsive-2xl {
+    @apply text-2xl sm:text-3xl md:text-4xl lg:text-5xl;
+  }
+  
+  /* Responsive padding and margins */
+  .p-responsive {
+    @apply p-4 sm:p-6 md:p-8;
+  }
+  
+  .px-responsive {
+    @apply px-4 sm:px-6 md:px-8;
+  }
+  
+  .py-responsive {
+    @apply py-4 sm:py-6 md:py-8;
+  }
+  
+  .m-responsive {
+    @apply m-4 sm:m-6 md:m-8;
+  }
+  
+  .mx-responsive {
+    @apply mx-4 sm:mx-6 md:mx-8;
+  }
+  
+  .my-responsive {
+    @apply my-4 sm:my-6 md:my-8;
+  }
+  
+  /* Grid responsive utilities */
+  .grid-responsive-1 {
+    @apply grid grid-cols-1;
+  }
+  
+  .grid-responsive-2 {
+    @apply grid grid-cols-1 sm:grid-cols-2;
+  }
+  
+  .grid-responsive-3 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3;
+  }
+  
+  .grid-responsive-4 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+  
+  /* Safe area handling for mobile devices */
+  .safe-top {
+    @apply pt-safe-top;
+  }
+  
+  .safe-bottom {
+    @apply pb-safe-bottom;
+  }
   /* Gradient backgrounds */
   .bg-gradient-primary {
     background: var(--gradient-primary);
@@ -249,17 +377,55 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
     transition: var(--transition-bounce);
   }
   
-  /* Interactive elements */
+  /* Enhanced interactive elements */
   .hover-lift {
-    @apply transition-smooth hover:scale-105 hover:shadow-elegant;
+    @apply transition-all duration-300 hover:scale-105 hover:shadow-elegant hover:-translate-y-1;
   }
   
   .hover-glow {
-    @apply transition-smooth hover:shadow-glow;
+    @apply transition-all duration-300 hover:shadow-glow;
   }
   
   .glass-effect {
-    @apply bg-white/10 backdrop-blur-md border border-white/20;
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-lg;
+  }
+  
+  .glass-dark {
+    @apply bg-black/10 backdrop-blur-md border border-black/20 shadow-lg;
+  }
+  
+  /* Enhanced button states */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 
+           focus-ring transition-all duration-200 font-medium rounded-lg px-6 py-3;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 active:scale-95 
+           focus-ring transition-all duration-200 font-medium rounded-lg px-6 py-3;
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent text-foreground hover:bg-muted active:scale-95 
+           focus-ring transition-all duration-200 font-medium rounded-lg px-6 py-3;
+  }
+  
+  /* Loading states */
+  .loading-spinner {
+    @apply animate-spin h-5 w-5 border-2 border-current border-r-transparent rounded-full;
+  }
+  
+  .loading-pulse {
+    @apply animate-pulse bg-muted rounded;
+  }
+  
+  /* Card interactions */
+  .card-interactive {
+    @apply cursor-pointer transition-all duration-300 hover:shadow-elegant hover:scale-[1.02] hover:-translate-y-1;
+  }
+  
+  .card-subtle {
+    @apply transition-all duration-200 hover:shadow-medium hover:bg-card-hover;
   }
   
   /* Status indicators */
@@ -301,9 +467,73 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
     @apply animate-pulse-glow;
   }
 
-  /* Enhanced dropdowns */
+  /* Enhanced dropdowns with proper z-index and animations */
   .dropdown-content {
-    @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-medium rounded-lg z-50 backdrop-blur-sm;
+    @apply bg-card border border-border shadow-strong rounded-lg z-[100] backdrop-blur-sm 
+           animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-200;
+  }
+  
+  .dropdown-item {
+    @apply px-4 py-3 text-sm hover:bg-muted focus:bg-muted transition-colors duration-150
+           first:rounded-t-lg last:rounded-b-lg cursor-pointer focus-ring;
+  }
+  
+  /* Modal and overlay utilities */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-in fade-in-0 duration-200;
+  }
+  
+  .modal-content {
+    @apply bg-card rounded-2xl shadow-strong border border-border max-w-lg w-full mx-4
+           animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-4 duration-300;
+  }
+  
+  /* Skeleton loading states */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded-md;
+  }
+  
+  .skeleton-text {
+    @apply skeleton h-4 w-3/4 mb-2;
+  }
+  
+  .skeleton-title {
+    @apply skeleton h-6 w-1/2 mb-4;
+  }
+  
+  .skeleton-button {
+    @apply skeleton h-10 w-24 rounded-lg;
+  }
+  
+  /* Device-specific optimizations */
+  @media (max-width: 640px) {
+    .mobile-full-width {
+      @apply w-screen relative left-1/2 right-1/2 -mx-[50vw];
+    }
+    
+    .mobile-padding {
+      @apply px-4 py-3;
+    }
+    
+    .mobile-text {
+      @apply text-sm leading-relaxed;
+    }
+  }
+  
+  @media (min-width: 768px) {
+    .tablet-padding {
+      @apply px-6 py-4;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .desktop-padding {
+      @apply px-8 py-6;
+    }
+    
+    .desktop-hover:hover {
+      @apply scale-105 shadow-elegant;
+    }
   }
 }
 

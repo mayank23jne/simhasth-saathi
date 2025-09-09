@@ -25,89 +25,97 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-saffron-light via-background to-sky-blue-light flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen-safe bg-gradient-to-br from-saffron-light via-background to-sky-blue-light flex flex-col items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-sm sm:max-w-md space-y-6 sm:space-y-8 animate-fade-in">
         {/* Logo and Title */}
-        <div className="text-center space-y-6">
-          <div className=" relative flex justify-center">
-            <div className="relative">
+        <div className="text-center space-y-4 sm:space-y-6">
+          <div className="relative flex justify-center">
+            <div className="relative group">
               <img 
                 src={simhasthLogo} 
                 alt="Simhasth Saathi Logo" 
-                className="h-24 w-24 rounded-2xl shadow-medium"
+                className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl shadow-medium transition-transform duration-300 group-hover:scale-105"
+                loading="eager"
               />
-              <div className="absolute -bottom-2 -right-2 bg-primary rounded-full p-2 shadow-soft">
-                <Shield className="h-4 w-4 text-primary-foreground" />
+              <div className="absolute -bottom-2 -right-2 bg-primary rounded-full p-1.5 sm:p-2 shadow-soft transition-transform duration-300 group-hover:scale-110">
+                <Shield className="h-3 w-3 sm:h-4 sm:w-4 text-primary-foreground" />
               </div>
             </div>
-            <div className="absolute -top-3 -left-3 bg-card/90 rounded-md p-1 shadow-soft backdrop-blur-sm left-[36px] top-[-40px]">
+            <div className="absolute -top-3 -left-3 bg-card/90 rounded-md p-1 shadow-soft backdrop-blur-sm left-[36px] top-[-40px] sm:left-[40px] sm:top-[-45px]">
                 <img
                   src={hackathonBadge}
                   alt="Hackathon Badge"
-                  className="h-[50px] w-[100px] object-contain"
+                  className="h-[40px] w-[80px] sm:h-[50px] sm:w-[100px] object-contain"
+                  loading="eager"
                 />
               </div>
           </div>
           
-          <div className="space-y-2">
-            <h1 className="text-3xl-mobile font-bold text-foreground text-saffron-dark">
+          <div className="space-y-2 sm:space-y-3">
+            <h1 className="text-responsive-2xl font-bold text-foreground text-saffron-dark font-heading">
               {t('welcomeTitle')}
             </h1>
-            {/* <h2 className="text-2xl-mobile font-bold text-saffron-dark">
-              {t('welcomeTitle')}
-            </h2> */}
-            <p className="text-muted-foreground text-lg leading-relaxed">
+            <p className="text-muted-foreground text-responsive-base leading-relaxed max-w-sm mx-auto">
               {t('welcomeSubtitle')}
             </p>
           </div>
         </div>
 
         {/* Language Selection */}
-        <Card className="p-6 border-card-border shadow-medium bg-card/95 backdrop-blur-sm">
-          <div className="space-y-4">
+        <Card className="p-4 sm:p-6 border-card-border shadow-medium bg-card/95 backdrop-blur-sm rounded-lg sm:rounded-xl transition-all duration-300 hover:shadow-elegant">
+          <div className="space-y-3 sm:space-y-4">
             <div className="text-center">
-              <h3 className="text-xl-mobile font-semibold text-foreground mb-2">
+              <h3 className="text-responsive-lg font-semibold text-foreground mb-2 font-heading">
                 {t('chooseLanguage')}
               </h3>
             </div>
             
             <LanguageSelector
-              selectedLanguage={language}         // use context language
-              onLanguageChange={setLanguage}     // directly update context
+              selectedLanguage={language}
+              onLanguageChange={setLanguage}
             />
           </div>
         </Card>
 
-        {/* Next Button */}
-        <Button
-          onClick={handleNext}
-          size="lg"
-          className="w-full h-button bg-primary hover:bg-primary/90 text-primary-foreground shadow-medium"
-        >
-          <span className="flex items-center justify-center gap-3 text-lg font-medium">
-            {t('next')}
-            <ArrowRight className="h-5 w-5" />
-          </span>
-        </Button>
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <Button
+            onClick={handleNext}
+            size="lg"
+            className="w-full min-h-button bg-primary hover:bg-primary/90 text-primary-foreground shadow-medium focus-ring touch-button transition-all duration-200"
+            aria-label="Continue to next step"
+          >
+            <span className="flex items-center justify-center gap-3 text-responsive-sm font-medium">
+              {t('next')}
+              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 group-hover:translate-x-1" />
+            </span>
+          </Button>
 
-        <Button
-          onClick={handleAdminLogin}
-          size="lg"
-          className="w-full h-button bg-primary hover:bg-primary/90 text-primary-foreground shadow-medium mt-2"
-        >
-          <span className="flex items-center justify-center gap-3 text-lg font-medium">
-            Admin Login
-          </span>
-        </Button>
+          <Button
+            onClick={handleAdminLogin}
+            variant="outline"
+            size="lg"
+            className="w-full min-h-button border-primary/20 hover:bg-primary/5 text-primary shadow-soft focus-ring touch-button transition-all duration-200"
+            aria-label="Login as administrator"
+          >
+            <span className="flex items-center justify-center gap-3 text-responsive-sm font-medium">
+              Admin Login
+            </span>
+          </Button>
+        </div>
 
         {/* Features */}
-        <div className="grid grid-cols-3 gap-4 pt-4">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-4">
           {tArray('features').map((feature, index) => (
-            <div key={index} className="text-center">
-              <div className="text-2xl mb-1">
+            <div 
+              key={index} 
+              className="text-center p-2 rounded-lg hover:bg-white/50 transition-all duration-200 group"
+              style={{ animationDelay: `${index * 150}ms` }}
+            >
+              <div className="text-xl sm:text-2xl mb-1 transition-transform duration-200 group-hover:scale-110">
                 {['🗺️', '🚨', '🛡️'][index]}
               </div>
-              <p className="text-xs text-muted-foreground">{feature}</p>
+              <p className="text-xs text-muted-foreground leading-tight">{feature}</p>
             </div>
           ))}
         </div>

@@ -79,6 +79,8 @@ export default {
 			spacing: {
 				'touch': 'var(--touch-target)',
 				'button': 'var(--button-height)',
+				'input': 'var(--input-height)',
+				'header': 'var(--header-height)',
 				'nav': 'var(--nav-height)',
 				'xs': 'var(--space-xs)',
 				'sm': 'var(--space-sm)',
@@ -86,18 +88,37 @@ export default {
 				'lg': 'var(--space-lg)',
 				'xl': 'var(--space-xl)',
 				'2xl': 'var(--space-2xl)',
-				'pb-nav': '80px'
+				'3xl': 'var(--space-3xl)',
+				'4xl': 'var(--space-4xl)',
+				'5xl': 'var(--space-5xl)',
+				'pb-nav': '90px',
+				'safe-top': 'env(safe-area-inset-top)',
+				'safe-bottom': 'env(safe-area-inset-bottom)',
+				'safe-left': 'env(safe-area-inset-left)',
+				'safe-right': 'env(safe-area-inset-right)',
+				'mobile-padding': 'var(--mobile-padding)',
+				'tablet-padding': 'var(--tablet-padding)',
+				'desktop-padding': 'var(--desktop-padding)'
 			},
 			borderRadius: {
+				'2xl': 'var(--radius-2xl)',
 				'xl': 'var(--radius-xl)',
 				'lg': 'var(--radius-large)',
+				'md': 'var(--radius-md)',
 				DEFAULT: 'var(--radius)',
-				'md': 'calc(var(--radius) - 2px)',
-				'sm': 'calc(var(--radius) - 4px)'
+				'sm': 'calc(var(--radius) - 2px)',
+				'xs': 'calc(var(--radius) - 4px)'
 			},
 			minHeight: {
 				'touch': 'var(--touch-target)',
-				'button': 'var(--button-height)'
+				'button': 'var(--button-height)',
+				'input': 'var(--input-height)',
+				'screen-safe': '100svh'
+			},
+			maxWidth: {
+				'mobile': '390px',
+				'tablet': '768px',
+				'desktop': '1024px'
 			},
 			boxShadow: {
 				soft: 'var(--shadow-soft)',
@@ -105,6 +126,19 @@ export default {
 				strong: 'var(--shadow-strong)'
 			},
 			fontSize: {
+				'xs': ['0.75rem', { lineHeight: '1rem' }],
+				'sm': ['0.875rem', { lineHeight: '1.25rem' }],
+				'base': ['1rem', { lineHeight: '1.5rem' }],
+				'lg': ['1.125rem', { lineHeight: '1.75rem' }],
+				'xl': ['1.25rem', { lineHeight: '1.75rem' }],
+				'2xl': ['1.5rem', { lineHeight: '2rem' }],
+				'3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+				'4xl': ['2.25rem', { lineHeight: '2.5rem' }],
+				'5xl': ['3rem', { lineHeight: '1' }],
+				'6xl': ['3.75rem', { lineHeight: '1' }],
+				'7xl': ['4.5rem', { lineHeight: '1' }],
+				'8xl': ['6rem', { lineHeight: '1' }],
+				'9xl': ['8rem', { lineHeight: '1' }],
 				'xl-mobile': ['1.375rem', { lineHeight: '1.5', letterSpacing: '-0.02em' }],
 				'2xl-mobile': ['1.75rem', { lineHeight: '1.4', letterSpacing: '-0.02em' }],
 				'3xl-mobile': ['2.25rem', { lineHeight: '1.3', letterSpacing: '-0.03em' }]

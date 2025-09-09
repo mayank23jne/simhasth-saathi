@@ -31,9 +31,11 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-card-border shadow-strong z-50"
+      className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-md border-t border-card-border shadow-strong z-50 safe-bottom"
+      role="navigation"
+      aria-label="Main navigation"
     >
-      <div className="flex items-center justify-around px-sm py-sm h-nav">
+      <div className="flex items-center justify-around px-2 sm:px-sm py-2 sm:py-sm min-h-nav max-w-lg mx-auto">
         {navItems.map((item, index) => (
           <motion.div
             key={item.path}
@@ -47,13 +49,15 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
               className={({ isActive }) =>
                 cn(
                   'flex flex-col items-center justify-center rounded-lg transition-all duration-200',
-                  'min-h-touch px-xs py-sm mx-xs relative',
-                  'hover:scale-105 active:scale-95',
+                  'min-h-touch px-1 sm:px-xs py-2 sm:py-sm mx-1 sm:mx-xs relative',
+                  'touch-target focus-ring active:scale-95',
+                  'hover:scale-105 sm:hover:scale-105',
                   isActive
                     ? 'text-primary bg-accent/80 shadow-soft'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
                 )
               }
+              aria-label={`Navigate to ${item.label}`}
             >
               {({ isActive }) => (
                 <>
@@ -63,21 +67,22 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
                   >
                     <item.icon 
                       className={cn(
-                        'h-5 w-5 mb-1 transition-colors duration-200',
+                        'h-4 w-4 sm:h-5 sm:w-5 mb-1 transition-colors duration-200',
                         isActive ? 'text-primary' : 'text-current'
                       )} 
+                      aria-hidden="true"
                     />
                     {isActive && (
                       <motion.div
                         layoutId="activeIndicator"
-                        className="absolute -inset-1 bg-primary/15 rounded-lg"
+                        className="absolute -inset-2 bg-primary/15 rounded-lg"
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
                     )}
                   </motion.div>
                   <motion.span 
                     className={cn(
-                      "text-xs font-medium leading-none transition-all duration-200 text-center",
+                      "text-xs font-medium leading-none transition-all duration-200 text-center min-h-[16px] flex items-center",
                       isActive ? "text-primary" : "text-current"
                     )}
                     animate={{ 
