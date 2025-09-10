@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
-import { User, Users, Phone, MapPin, Settings, Share, Edit, Copy, QrCode, Camera, Trash2 } from 'lucide-react';
+import { User, Users, Phone, Settings, Share, Edit, Copy, QrCode, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 import { useAppStore } from '@/store/appStore';
 import { QRScanner } from '@/components/QRScanner';
 import MyQRModal from '@/components/MyQRModal';
+import { ResponsiveButton } from '@/components/ui/responsive-button';
+import { ResponsiveContainer } from '@/components/ui/responsive-container';
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
@@ -51,11 +53,13 @@ const ProfileScreen = () => {
   const handleShareLocation = useCallback(() => {
     const message = `${t('locationMessage')} - ${userProfile.name}`;
     console.log('Sharing location via SMS:', message);
+    toast.success(t('locationShared') || 'Location shared');
   }, [t, userProfile.name]);
 
   const copyGroupId = useCallback(() => {
     navigator.clipboard.writeText(userProfile.groupId);
-  }, [userProfile.groupId]);
+    toast.success(t('copied') || 'Copied');
+  }, [userProfile.groupId, t]);
 
   const handleScanResult = useCallback((result: any) => {
     setScannedResult(result);
@@ -84,59 +88,73 @@ const ProfileScreen = () => {
     <>
     <div className="min-h-screen bg-gradient-subtle">
       <div className="px-responsive py-responsive space-y-responsive animate-fade-in">
-        {/* User Info Card - Enhanced responsive */}
-        <Card className="shadow-soft hover:shadow-medium transition-all duration-300 card-interactive">
-          <CardContent className="p-responsive">
-            <div className="flex items-center gap-responsive mb-responsive">
-              <Avatar className="h-12 w-12 sm:h-16 sm:w-16 ring-2 ring-primary/20 transition-all duration-300 hover:ring-primary/40">
-                <AvatarImage src="/placeholder-avatar.jpg" />
-                <AvatarFallback className="text-responsive-lg bg-primary/10 text-primary font-semibold">
-                  {userProfile.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-responsive-base font-bold text-foreground truncate">{userProfile.name}</h2>
-                <p className="text-responsive-sm text-muted-foreground">{t('age')}: {userProfile.age}</p>
-                <div className="flex items-center gap-sm mt-sm">
-                  <StatusIndicator status="safe" size="sm" />
+        {/* User Info Card - Premium layout */}
+        <Card className="shadow-soft hover:shadow-medium transition-all duration-300 card-interactive overflow-hidden">
+          <CardContent className="p-0">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/15 via-background to-accent/15" />
+              <div className="relative p-responsive">
+                <div className="flex items-center gap-responsive">
+                  <Avatar className="h-14 w-14 sm:h-20 sm:w-20 ring-2 ring-primary/30 shadow-sm">
+                    <AvatarImage src="/placeholder-avatar.jpg" />
+                    <AvatarFallback className="text-responsive-lg bg-primary/10 text-primary font-semibold">
+                      {userProfile.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-responsive-lg font-bold text-foreground truncate">{userProfile.name}</h2>
+                    <p className="text-responsive-sm text-muted-foreground">{t('age')}: {userProfile.age}</p>
+                    <div className="flex items-center gap-sm mt-sm">
+                      <StatusIndicator status="safe" size="sm" />
+                      <span className="text-xs text-muted-foreground">{t('active') || 'Active'}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-center">
+                    <Button variant="outline" size="sm" className="h-touch w-touch p-0 hover:scale-110 transition-transform duration-200 focus-ring" aria-label="Edit profile">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-center">
-                <Button variant="outline" size="sm" className="h-touch w-touch p-0 hover:scale-110 transition-transform duration-200 focus-ring" aria-label="Edit profile">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-touch w-touch p-0 hover:scale-110 transition-transform duration-200 focus-ring" onClick={() => setQrModalOpen(true)} title="Show My QR" aria-label="Show QR code">
-                  <QrCode className="h-4 w-4" />
-                </Button>
+
+                <div className="mt-md space-y-sm">
+                  <div className="flex items-center gap-md">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-mono text-sm">{userProfile.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-md">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{t('groupId')}: {userProfile.groupId}</span>
+                    <Button variant="ghost" size="sm" onClick={copyGroupId} className="h-6 w-6 p-0" aria-label="Copy group id">
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+
+                <ResponsiveContainer className="mt-md">
+                  <div className="grid grid-cols-2 gap-2">
+                    <ResponsiveButton 
+                      onClick={() => { setScannerMode('member'); setScannerOpen(true); }} 
+                      className="w-full"
+                      touchOptimized
+                      animated
+                      icon={<QrCode className="h-4 w-4" />}
+                    >
+                      {t('addMember') || 'Add Member'}
+                    </ResponsiveButton>
+                    <ResponsiveButton 
+                      variant="outline"
+                      className="w-full"
+                      touchOptimized
+                      animated
+                      icon={<QrCode className="h-4 w-4" />}
+                      onClick={() => setQrModalOpen(true)}
+                    >
+                      {t('myQR') || 'My QR'}
+                    </ResponsiveButton>
+                  </div>
+                </ResponsiveContainer>
               </div>
             </div>
-
-            <div className="space-y-md">
-              <div className="flex items-center gap-md">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span className="font-mono text-sm">{userProfile.phone}</span>
-              </div>
-
-              <div className="flex items-center gap-md">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{t('groupId')}: {userProfile.groupId}</span>
-                <Button variant="ghost" size="sm" onClick={copyGroupId} className="h-6 w-6 p-0">
-                  <Copy className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-
-            <ResponsiveContainer padding="md" size="full">
-              <ResponsiveButton 
-                onClick={() => { setScannerMode('member'); setScannerOpen(true); }} 
-                className="w-full" 
-                touchOptimized
-                animated
-                icon={<QrCode className="h-4 w-4" />}
-              >
-                {t('addMember') || 'Add Member'}
-              </ResponsiveButton>
-            </ResponsiveContainer>
           </CardContent>
         </Card>
 
@@ -214,18 +232,18 @@ const ProfileScreen = () => {
             <CardTitle className="text-base">{t('groupInfo')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-md">
-            <div className="space-y-sm">
-              <div className="flex items-center justify-between text-sm">
-                <span>{t('totalMembers')}</span>
-                <span className="font-semibold">{members.length}</span>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-3 rounded-lg bg-muted/50 text-center">
+                <div className="text-xs text-muted-foreground">{t('totalMembers')}</div>
+                <div className="text-lg font-semibold">{members.length}</div>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span>{t('onlineMembers')}</span>
-                <span className="font-semibold text-success">3</span>
+              <div className="p-3 rounded-lg bg-muted/50 text-center">
+                <div className="text-xs text-muted-foreground">{t('onlineMembers')}</div>
+                <div className="text-lg font-semibold text-success">3</div>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span>{t('groupCreated')}</span>
-                <span className="text-xs text-muted-foreground">2 दिन पहले</span>
+              <div className="p-3 rounded-lg bg-muted/50 text-center">
+                <div className="text-xs text-muted-foreground">{t('groupCreated')}</div>
+                <div className="text-xs">2 दिन पहले</div>
               </div>
             </div>
 
@@ -236,34 +254,53 @@ const ProfileScreen = () => {
           </CardContent>
         </Card>
 
-        {members.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Group Members</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-end">
-                <Button variant="outline" size="sm" onClick={clearAllMembers}>Clear All Members</Button>
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle className="text-lg">{t('groupMembers') || 'Group Members'}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {members.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center p-6 rounded-lg border border-dashed">
+                <Users className="h-6 w-6 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground mb-3">{t('noMembersYet') || 'No members yet.'}</p>
+                <ResponsiveButton 
+                  onClick={() => { setScannerMode('member'); setScannerOpen(true); }}
+                  icon={<QrCode className="h-4 w-4" />}
+                >
+                  {t('addMember') || 'Add Member'}
+                </ResponsiveButton>
               </div>
-              <div className="grid grid-cols-1 gap-3">
-                {members.map((m) => (
-                  <Card key={m.id} className="transition hover:shadow-medium">
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{m.name}</div>
-                        <div className="text-sm text-muted-foreground">{m.phone}</div>
-                        <div className="text-xs">Group: {m.groupCode}</div>
-                      </div>
-                      <Button variant="destructive" size="sm" onClick={() => removeMember(m.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <>
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-muted-foreground">{members.length} {t('members') || 'members'}</div>
+                  <Button variant="outline" size="sm" onClick={clearAllMembers}>{t('clearAll') || 'Clear All'}</Button>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  {members.map((m) => (
+                    <Card key={m.id} className="transition hover:shadow-medium">
+                      <CardContent className="p-4 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar className="h-9 w-9">
+                            <AvatarFallback>{m.name?.charAt(0) || '?'}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{m.name}</div>
+                            <div className="text-sm text-muted-foreground truncate">{m.phone}</div>
+                            <div className="text-xs text-muted-foreground truncate">{t('group') || 'Group'}: {m.groupCode}</div>
+                          </div>
+                        </div>
+                        <Button variant="destructive" size="sm" onClick={() => removeMember(m.id)} aria-label="Remove member">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Settings Link */}
         <Button

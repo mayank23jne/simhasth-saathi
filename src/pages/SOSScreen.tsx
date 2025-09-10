@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { AlertTriangle, Phone, Shield, Clock } from 'lucide-react';
 import { ResponsiveButton } from '@/components/ui/responsive-button';
 import { ResponsiveCard } from '@/components/ui/responsive-card';
 import { ResponsiveContainer } from '@/components/ui/responsive-container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useTranslation } from '@/context/TranslationContext';
 import { useAppStore } from '@/store/appStore';
@@ -446,7 +447,7 @@ const SOSScreen = () => {
                       <div className="flex-1">
                         <div className="font-medium text-sm">{name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {new Date(alert.timestamp).toLocaleString()}
+                          {new Date(alert.createdAt).toLocaleString()}
                         </div>
                       </div>
                       <div className={`text-xs px-xs py-0.5 rounded ${
@@ -459,78 +460,20 @@ const SOSScreen = () => {
                     </div>
                     <div className="text-xs text-muted-foreground mb-sm">📍 {loc}</div>
                     <div className="flex flex-col sm:flex-row gap-xs">
-                      <ResponsiveButton
-                        size="xs"
+                      <Button
+                        size="sm"
                         variant="outline"
                         className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                         onClick={() => handleViewOnMap(meta?.lat, meta?.lng, `${name} SOS`)}
-                        touchOptimized
                       >
                         View on Map
-                      </ResponsiveButton>
+                      </Button>
                     </div>
                   </div>
                 );
               })}
             </CardContent>
           </ResponsiveCard>
-        )}
-      </ResponsiveContainer>
-    </motion.div>
-  );
-};
-
-export default SOSScreen;
-                const selfMember = members.find(m => m.isSelf);
-                const name = selfMember?.name || 'You';
-                const meta = alertMeta[alert.id];
-                // Always resolve loc via meta first, then robust self last location, never show em-dash if any location exists
-                const fallbackLoc = getSelfLastLocation();
-                const loc = meta
-                  ? (meta.area ? meta.area : `${meta.lat.toFixed(5)}, ${meta.lng.toFixed(5)}`)
-                  : (fallbackLoc ? `${fallbackLoc.lat.toFixed(5)}, ${fallbackLoc.lng.toFixed(5)}` : '—');
-                const statusLabel = alert.status === 'resolved' ? t('resolved') : alert.status === 'responded' ? t('responded') : t('sent');
-                return (
-                  <div key={alert.id} className="flex items-center justify-between p-md bg-muted rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">{name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(t('groupCode') || 'Group Code')}: {groupCode || '—'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {(t('lastKnownLocation') || 'Last Known Location')}: {loc}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{new Date(alert.createdAt).toLocaleString()}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className={`inline-block px-sm py-xs rounded-full text-xs font-medium ${
-                        alert.status === 'resolved' 
-                          ? 'bg-success/20 text-success' 
-                          : alert.status === 'responded'
-                          ? 'bg-sky-blue/20 text-sky-blue'
-                          : 'bg-warning/20 text-warning'
-                      }`}>
-                        {statusLabel}
-                      </span>
-                      {alert.responder && (
-                        <p className="text-xs text-muted-foreground mt-xs">{alert.responder}</p>
-                      )}
-                      <div className="mt-xs flex items-center justify-end">
-                        {/* <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewOnMap(meta?.lat, meta?.lng, `SOS ${name}`)}
-                          className="hover:scale-[1.02] transition-transform"
-                        >
-                          {t('viewOnMap') || 'View on Map'}
-                        </Button> */}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
         )}
       </div>
       {/* Volunteer Alerts Modal */}

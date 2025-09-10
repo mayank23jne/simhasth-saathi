@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LanguageSelector } from '@/components/ui/language-selector';
 import { ArrowRight, Shield } from 'lucide-react';
-import simhasthLogo from '@/assets/simhasth-logo.png';
+import simhasthLogo from '@/assets/simhastha_logo.png';
 import hackathonBadge from '@/assets/Hackathon.png';
 import { LanguageCode, useTranslation } from '@/context/TranslationContext';
 

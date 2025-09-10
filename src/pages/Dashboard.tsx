@@ -8,10 +8,14 @@ import {
   Shield,
   AlertTriangle,
   Clock,
-  Navigation
+  Navigation,
+  Share,
+  QrCode,
+  Copy
 } from 'lucide-react';
 import { useTranslation } from '@/context/TranslationContext';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface DashboardProps {
   groupCode: string;
@@ -26,14 +30,51 @@ const Dashboard: React.FC<DashboardProps> = ({ groupCode }) => {
     { name: 'लक्ष्मण कुमार', status: 'safe', lastSeen: '1 min ago' },
   ]), []);
 
+  const copyGroupCode = () => {
+    if (!groupCode) return;
+    navigator.clipboard.writeText(groupCode);
+    toast.success(t('copied') || 'Copied');
+  };
+
+  const shareGroupLocation = () => {
+    toast.success(t('locationShared') || 'Location shared');
+  };
+
   return (
     <div className="min-h-screen-safe bg-gradient-to-br from-saffron-light/30 via-background to-sky-blue-light/30">
       <div className="container-mobile sm:container-tablet lg:container-desktop space-y-4 sm:space-y-6 py-4 sm:py-6">
+        {/* Hero Header */}
+        {/* <Card className="p-4 sm:p-6 border-card-border shadow-medium bg-card/95 backdrop-blur-sm card-interactive rounded-lg sm:rounded-xl overflow-hidden">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-accent/10 pointer-events-none" />
+            <div className="relative flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h1 className="text-responsive-xl font-semibold text-foreground font-heading">{t('yourGroup')}</h1>
+                <p className="text-responsive-xs text-muted-foreground">{t('stayConnected') || 'Stay connected and safe with your group'}</p>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted/60 border border-border/60 shadow-sm">
+                  <span className="text-xs font-mono text-foreground">{groupCode}</span>
+                  <button className="p-1 rounded-md hover:bg-background/60 focus-ring" onClick={copyGroupCode} aria-label="Copy group code">
+                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <StatusIndicator status="safe" size="sm" />
+                <span className="text-xs text-muted-foreground">{t('allSafe')}</span>
+              </div>
+            </div>
+          </div>
+        </Card> */}
         {/* Group Status Card */}
         <Card className="p-4 sm:p-6 border-card-border shadow-medium bg-card/95 backdrop-blur-sm card-subtle rounded-lg sm:rounded-xl">
           <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-responsive-lg font-semibold text-foreground font-heading">{t('groupStatus')}</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-responsive-lg font-semibold text-foreground font-heading">{t('groupStatus')}</h2>
+                <span className="hidden sm:inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-muted/60 border border-border/60 text-xs font-mono text-foreground">
+                  {groupCode}
+                </span>
+              </div>
               <StatusIndicator status="safe" size="sm" />
             </div>
 
@@ -93,6 +134,28 @@ const Dashboard: React.FC<DashboardProps> = ({ groupCode }) => {
             >
               <MapPin className="h-5 w-5 sm:h-6 sm:w-6" />
               <span className="text-xs sm:text-sm font-medium">{t('findGroup')}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-16 sm:h-20 flex-col gap-1 sm:gap-2 bg-card hover:bg-background/80 shadow-soft touch-button focus-ring active:scale-95 transition-all duration-200"
+              onClick={shareGroupLocation}
+              aria-label="Share Current Location"
+            >
+              <Share className="h-5 w-5 sm:h-6 sm:w-6" />
+              <span className="text-xs sm:text-sm font-medium">{t('shareLocation')}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-16 sm:h-20 flex-col gap-1 sm:gap-2 bg-card hover:bg-background/80 shadow-soft touch-button focus-ring active:scale-95 transition-all duration-200"
+              onClick={() => navigate('/profile')}
+              aria-label="Show My QR Code"
+            >
+              <QrCode className="h-5 w-5 sm:h-6 sm:w-6" />
+              <span className="text-xs sm:text-sm font-medium">{t('myQR') || 'My QR'}</span>
             </Button>
           </div>
         </div>
