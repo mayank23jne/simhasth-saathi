@@ -1,11 +1,14 @@
-import React, { useState, memo } from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, Phone, Shield, Clock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ResponsiveButton } from '@/components/ui/responsive-button';
+import { ResponsiveCard } from '@/components/ui/responsive-card';
+import { ResponsiveContainer } from '@/components/ui/responsive-container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useTranslation } from '@/context/TranslationContext';
 import { useAppStore } from '@/store/appStore';
 import HelpdeskScreen from './HelpdeskScreen';
+import { motion } from 'framer-motion';
 
 const SOSScreen = () => {
   const { t } = useTranslation();
@@ -241,7 +244,7 @@ const SOSScreen = () => {
   }, [alertMeta]);
 
   return (
-    <div className="flex flex-col bg-background">
+    <div className="flex flex-col bg-background min-h-screen">
       {confirmCountdown !== null && (() => {
         const ringSize = 180;
         const ringStroke = 10;
@@ -250,8 +253,8 @@ const SOSScreen = () => {
         const progress = (INITIAL_COUNTDOWN - confirmCountdown) / INITIAL_COUNTDOWN;
         const ringOffset = ringCircumference * (1 - progress);
         return (
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 backdrop-blur-md">
-            <div className="relative w-full max-w-sm mx-4 p-6 rounded-2xl bg-card border border-border shadow-strong animate-bounce-in">
+          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in">
+            <div className="relative w-full max-w-sm mx-responsive p-responsive rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-strong animate-scale-in">
               <div className="flex flex-col items-center">
                 <div className="relative">
                   <svg width={ringSize} height={ringSize} className="block">
@@ -285,54 +288,64 @@ const SOSScreen = () => {
                 <div className="mt-4 text-center text-sm text-muted-foreground">
                   {(t('sosSending') || 'Sending SOS')} in {confirmCountdown}s...
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-3 w-full">
-                  <Button variant="outline" onClick={handleCancelSOS}>{t('cancel') || 'Cancel'}</Button>
-                  <Button onClick={handleSendNow} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                <div className="mt-lg grid grid-cols-2 gap-sm w-full">
+                  <ResponsiveButton variant="outline" onClick={handleCancelSOS} className="flex-1">
+                    {t('cancel') || 'Cancel'}
+                  </ResponsiveButton>
+                  <ResponsiveButton 
+                    onClick={handleSendNow} 
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground flex-1"
+                  >
                     {t('sendNow') || 'Send now'}
-                  </Button>
+                  </ResponsiveButton>
                 </div>
               </div>
             </div>
           </div>
         );
       })()}
-      <div className="px-lg py-xl space-y-lg">
-        {/* SOS Button */}
-        <div className="flex-1 flex items-center justify-center py-2xl">
-          <div className="text-center">
-            <div className="relative inline-block">
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <span className="sos-halo" />
-                <span className="sos-halo-2" />
+      <div className="px-responsive py-responsive space-y-responsive">
+        {/* SOS Button - Enhanced for all devices */}
+        <div className="flex-1 flex items-center justify-center py-responsive min-h-[40vh] sm:min-h-[50vh]">
+            <ResponsiveContainer size="full" padding="responsive">
+              <div className="text-center animate-fade-in">
+                <div className="relative inline-block">
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <span className="sos-halo" />
+                    <span className="sos-halo-2" />
+                  </div>
+                <ResponsiveButton
+                  size="lg"
+                    className={`relative z-[1] w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full text-responsive-lg font-bold shadow-strong shadow-glow ${
+                    isEmergency 
+                      ? 'bg-destructive hover:bg-destructive animate-pulse scale-110' 
+                      : 'bg-destructive hover:bg-destructive/90 hover:scale-110'
+                  }`}
+                  onClick={handleSOSPress}
+                    disabled={isEmergency || confirmCountdown !== null}
+                    touchOptimized
+                    animated
+                    aria-label="Emergency SOS Button"
+                >
+                  <div className="flex flex-col items-center gap-xs sm:gap-sm">
+                    <AlertTriangle className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
+                    <span className="text-sm sm:text-base lg:text-lg">{t('sosButton')}</span>
+                    <span className="text-xs sm:text-sm font-normal hidden sm:block">{t('sosEmergency')}</span>
+                  </div>
+                </ResponsiveButton>
+                </div>
+                <p className="mt-lg text-responsive-sm text-muted-foreground max-w-xs mx-auto animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                  {t('sosSubtitle')}
+                </p>
               </div>
-            <Button
-              size="lg"
-                className={`relative z-[1] w-40 h-40 rounded-full text-xl font-bold shadow-strong shadow-glow transition-bounce ${
-                isEmergency 
-                  ? 'bg-destructive hover:bg-destructive animate-pulse scale-110' 
-                  : 'bg-destructive hover:bg-destructive/90 hover:scale-105'
-              }`}
-              onClick={handleSOSPress}
-                disabled={isEmergency || confirmCountdown !== null}
-            >
-              <div className="flex flex-col items-center gap-sm">
-                <AlertTriangle className="h-12 w-12" />
-                <span className="text-base">{t('sosButton')}</span>
-                <span className="text-sm font-normal">{t('sosEmergency')}</span>
-              </div>
-            </Button>
-            </div>
-            <p className="mt-lg text-sm text-muted-foreground max-w-xs mx-auto">
-              {t('sosSubtitle')}
-            </p>
-          </div>
+            </ResponsiveContainer>
         </div>
 
-        {/* Confirmation Alert */}
+        {/* Confirmation Alert - Enhanced responsive */}
         {showConfirmation && (
-          <Alert className="border-success bg-success/10">
-            <Shield className="h-4 w-4 text-success" />
-            <AlertDescription className="text-success">
+          <Alert className="border-success bg-success/10 shadow-success animate-slide-up">
+            <Shield className="h-4 w-4 text-success flex-shrink-0" />
+            <AlertDescription className="text-success text-responsive-sm">
               {confirmCountdown !== null ? (
                 <div className="flex items-center justify-between gap-sm">
                   <div className="flex items-center gap-sm">
@@ -342,8 +355,12 @@ const SOSScreen = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-xs">
-                    <Button size="sm" variant="outline" onClick={handleCancelSOS}>{t('cancel') || 'Cancel'}</Button>
-                    <Button size="sm" onClick={handleSendNow}>{t('sendNow') || 'Send now'}</Button>
+                    <ResponsiveButton size="sm" variant="outline" onClick={handleCancelSOS}>
+                      {t('cancel') || 'Cancel'}
+                    </ResponsiveButton>
+                    <ResponsiveButton size="sm" onClick={handleSendNow}>
+                      {t('sendNow') || 'Send now'}
+                    </ResponsiveButton>
                   </div>
                 </div>
               ) : isEmergency ? (
@@ -388,17 +405,82 @@ const SOSScreen = () => {
           </div>
         </div> */}
 
-        {/* Recent Alerts */}
+        {/* Recent Alerts - Enhanced responsive design */}
         {sosAlerts.length > 0 && (
-          <Card className="shadow-soft">
+          <ResponsiveCard 
+            className="shadow-soft" 
+            hover 
+            animated 
+            delay={0.3}
+          >
             <CardHeader className="pb-md">
-              <CardTitle className="text-base flex items-center gap-sm">
-                <Clock className="h-4 w-4" />
+              <CardTitle className="text-responsive-base flex items-center gap-sm">
+                <Clock className="h-4 w-4 flex-shrink-0" />
                 {t('recentActivity')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-sm">
               {sosAlerts.map((alert) => {
+                const selfMember = members.find(m => m.isSelf);
+                const name = selfMember?.name || 'You';
+                const meta = alertMeta[alert.id];
+                // Always resolve loc via meta first, then robust self last location, never show em-dash if any location exists
+                const fallbackLoc = getSelfLastLocation();
+                const loc = meta
+                  ? (meta.area ? meta.area : `${meta.lat.toFixed(5)}, ${meta.lng.toFixed(5)}`)
+                  : (fallbackLoc ? `${fallbackLoc.lat.toFixed(5)}, ${fallbackLoc.lng.toFixed(5)}` : '—');
+
+                const flash = actionFlash[alert.id];
+                return (
+                  <div
+                    key={alert.id}
+                    className={`p-sm rounded-lg border transition-colors ${
+                      flash === 'responded' ? 'border-success bg-success/10' :
+                      flash === 'resolved' ? 'border-success bg-success/20' :
+                      alert.status === 'responded' ? 'border-primary bg-primary/5' :
+                      alert.status === 'resolved' ? 'border-success bg-success/5' :
+                      'border-muted bg-muted/30'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-sm mb-xs">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(alert.timestamp).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className={`text-xs px-xs py-0.5 rounded ${
+                        alert.status === 'resolved' ? 'bg-success/20 text-success' :
+                        alert.status === 'responded' ? 'bg-primary/20 text-primary' :
+                        'bg-warning/20 text-warning'
+                      }`}>
+                        {alert.status}
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground mb-sm">📍 {loc}</div>
+                    <div className="flex flex-col sm:flex-row gap-xs">
+                      <ResponsiveButton
+                        size="xs"
+                        variant="outline"
+                        className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                        onClick={() => handleViewOnMap(meta?.lat, meta?.lng, `${name} SOS`)}
+                        touchOptimized
+                      >
+                        View on Map
+                      </ResponsiveButton>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </ResponsiveCard>
+        )}
+      </ResponsiveContainer>
+    </motion.div>
+  );
+};
+
+export default SOSScreen;
                 const selfMember = members.find(m => m.isSelf);
                 const name = selfMember?.name || 'You';
                 const meta = alertMeta[alert.id];

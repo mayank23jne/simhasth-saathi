@@ -294,7 +294,7 @@ const HelpdeskScreen = () => {
   };
 
   return (
-    <div className="flex flex-col bg-background">
+    <div className="flex flex-col bg-gradient-subtle min-h-screen animate-fade-in">
 
       {/* Tabs */}
       <div className="flex-1">
@@ -305,20 +305,26 @@ const HelpdeskScreen = () => {
           </TabsList> */}
 
           {/* Digital Helpdesk Tab */}
-           <TabsContent value="digital" className="flex-1 p-4 space-y-4">
-            <div className="grid gap-4">
+           <TabsContent value="digital" className="flex-1 p-responsive space-y-responsive">
+            <div className="grid gap-responsive">
               {digitalHelpOptions.map((option, index) => (
-                <Card key={index} className="cursor-pointer hover:shadow-medium transition-shadow" onClick={option.action}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-full ${option.bgColor}`}>
+                <Card key={index} className="cursor-pointer hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 card-interactive animate-fade-in" 
+                      onClick={option.action}
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                      tabIndex={0}
+                      role="button"
+                      onKeyDown={(e) => e.key === 'Enter' && option.action()}
+                      aria-label={option.title}>
+                  <CardContent className="p-responsive">
+                    <div className="flex items-center gap-responsive">
+                      <div className={`p-3 rounded-full ${option.bgColor} transition-transform duration-200 hover:scale-110`}>
                         <option.icon className={`h-6 w-6 ${option.color}`} />
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-card-foreground">{option.title}</h3>
-                        <p className="text-sm text-muted-foreground">{option.subtitle}</p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-card-foreground text-responsive-base truncate">{option.title}</h3>
+                        <p className="text-responsive-sm text-muted-foreground line-clamp-2">{option.subtitle}</p>
                       </div>
-                      <div className="text-muted-foreground">→</div>
+                      <div className="text-muted-foreground transition-transform duration-200 hover:translate-x-1 flex-shrink-0">→</div>
                     </div>
                   </CardContent>
                 </Card>

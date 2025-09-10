@@ -56,20 +56,20 @@ const SettingsScreen = () => {
         showNotifications
         onNotificationClick={() => console.log("Notifications clicked")}
       /> */}
-    <div className="min-h-screen bg-background">
-      <div className="px-lg py-lg space-y-lg">
-        {/* Header */}
-        <div className="flex items-center gap-md">
-          <Button variant="ghost" size="sm" onClick={goBack}>
-            <ArrowLeft className="h-4 w-4" />
+    <div className="min-h-screen bg-gradient-subtle">
+      <div className="px-responsive py-responsive space-y-responsive animate-fade-in">
+        {/* Header - Enhanced mobile-friendly */}
+        <div className="flex items-center gap-responsive animate-slide-in-right">
+          <Button variant="ghost" size="sm" onClick={goBack} className="h-touch w-touch p-0 hover:scale-110 transition-transform duration-200 focus-ring" aria-label="Go back">
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-base font-bold text-foreground">सेटिंग्स</h1>
+          <h1 className="text-responsive-xl font-bold text-foreground">सेटिंग्स</h1>
         </div>
-        {/* Language Settings */}
-        <Card className="shadow-soft">
+        {/* Language Settings - Enhanced */}
+        <Card className="shadow-soft hover:shadow-medium transition-all duration-300 card-interactive animate-fade-in">
           <CardHeader className="pb-md">
-            <CardTitle className="text-base flex items-center gap-sm">
-              <Globe className="h-4 w-4" />
+            <CardTitle className="text-responsive-base flex items-center gap-sm">
+              <Globe className="h-5 w-5 text-primary" />
               भाषा चयन
             </CardTitle>
           </CardHeader>

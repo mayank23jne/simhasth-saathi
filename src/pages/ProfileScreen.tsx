@@ -82,30 +82,30 @@ const ProfileScreen = () => {
 
   return (
     <>
-    <div className="min-h-screen bg-background">
-      <div className="px-lg py-lg space-y-lg">
-        {/* User Info Card */}
-        <Card className="shadow-soft">
-          <CardContent className="p-lg">
-            <div className="flex items-center gap-lg mb-lg">
-              <Avatar className="h-16 w-16">
+    <div className="min-h-screen bg-gradient-subtle">
+      <div className="px-responsive py-responsive space-y-responsive animate-fade-in">
+        {/* User Info Card - Enhanced responsive */}
+        <Card className="shadow-soft hover:shadow-medium transition-all duration-300 card-interactive">
+          <CardContent className="p-responsive">
+            <div className="flex items-center gap-responsive mb-responsive">
+              <Avatar className="h-12 w-12 sm:h-16 sm:w-16 ring-2 ring-primary/20 transition-all duration-300 hover:ring-primary/40">
                 <AvatarImage src="/placeholder-avatar.jpg" />
-                <AvatarFallback className="text-lg bg-primary/10 text-primary">
+                <AvatarFallback className="text-responsive-lg bg-primary/10 text-primary font-semibold">
                   {userProfile.name.charAt(0)}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1">
-                <h2 className="text-base font-bold text-foreground">{userProfile.name}</h2>
-                <p className="text-sm text-muted-foreground">{t('age')}: {userProfile.age}</p>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-responsive-base font-bold text-foreground truncate">{userProfile.name}</h2>
+                <p className="text-responsive-sm text-muted-foreground">{t('age')}: {userProfile.age}</p>
                 <div className="flex items-center gap-sm mt-sm">
                   <StatusIndicator status="safe" size="sm" />
                 </div>
               </div>
-              <div className="flex flex-col gap-2 items-end">
-                <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                  <Edit className="h-3 w-3" />
+              <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-center">
+                <Button variant="outline" size="sm" className="h-touch w-touch p-0 hover:scale-110 transition-transform duration-200 focus-ring" aria-label="Edit profile">
+                  <Edit className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" className="h-8 w-8 p-0 mt-1" onClick={() => setQrModalOpen(true)} title="Show My QR">
+                <Button variant="outline" size="icon" className="h-touch w-touch p-0 hover:scale-110 transition-transform duration-200 focus-ring" onClick={() => setQrModalOpen(true)} title="Show My QR" aria-label="Show QR code">
                   <QrCode className="h-4 w-4" />
                 </Button>
               </div>
@@ -126,12 +126,17 @@ const ProfileScreen = () => {
               </div>
             </div>
 
-            <div className="pt-md">
-              <Button onClick={() => { setScannerMode('member'); setScannerOpen(true); }} className="w-full h-10" size="sm">
-                <QrCode className="h-4 w-4 mr-sm" />
+            <ResponsiveContainer padding="md" size="full">
+              <ResponsiveButton 
+                onClick={() => { setScannerMode('member'); setScannerOpen(true); }} 
+                className="w-full" 
+                touchOptimized
+                animated
+                icon={<QrCode className="h-4 w-4" />}
+              >
                 {t('addMember') || 'Add Member'}
-              </Button>
-            </div>
+              </ResponsiveButton>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
@@ -155,10 +160,15 @@ const ProfileScreen = () => {
                 </div>
               </div>
             ))}
-            <Button variant="outline" className="w-full mt-md h-10">
-              <Phone className="h-4 w-4 mr-sm" />
+            <ResponsiveButton 
+              variant="outline" 
+              className="w-full" 
+              touchOptimized
+              animated
+              icon={<Phone className="h-4 w-4" />}
+            >
               {t('addContact')}
-            </Button>
+            </ResponsiveButton>
           </CardContent>
         </Card>
 

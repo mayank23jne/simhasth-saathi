@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
-import { Users, AlertCircle, Navigation, Locate, Info } from 'lucide-react';
+import { Users, AlertCircle, Navigation, Locate, Info, Plus, Minus, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ResponsiveButton } from '@/components/ui/responsive-button';
+import { ResponsiveCard } from '@/components/ui/responsive-card';
+import { ResponsiveContainer } from '@/components/ui/responsive-container';
 import { StatusIndicator } from '@/components/ui/status-indicator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MapContainer, TileLayer } from 'react-leaflet';
@@ -11,6 +14,7 @@ import 'leaflet-routing-machine';
 import { useTranslation } from '@/context/TranslationContext';
 import { useGroup } from '@/context/GroupContext';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 
 // Group members are provided by GroupContext
 
