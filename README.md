@@ -1,6 +1,8 @@
 Welcome to your project
 Project info
 
+URL: https://simhasthasaathi.ewayitsolutions.com/
+
 How can I edit this code?
 
 There are several ways of editing your application.
