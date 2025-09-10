@@ -1,5 +1,5 @@
 import React, { useState, memo } from 'react';
-import { AlertTriangle, Phone, Shield, Clock } from 'lucide-react';
+import { AlertTriangle, Phone, Shield, Clock, Sparkles } from 'lucide-react';
 import { ResponsiveButton } from '@/components/ui/responsive-button';
 import { ResponsiveCard } from '@/components/ui/responsive-card';
 import { ResponsiveContainer } from '@/components/ui/responsive-container';
@@ -32,6 +32,9 @@ const SOSScreen = () => {
   const countdownIntervalRef = React.useRef<number | null>(null);
   const sendTimeoutRef = React.useRef<number | null>(null);
   const INITIAL_COUNTDOWN = 5;
+  const [rippleTs, setRippleTs] = useState<number | null>(null);
+  const [burstTs, setBurstTs] = useState<number | null>(null);
+  const [tilt, setTilt] = useState<{ rx: number; ry: number } | null>(null);
 
   // Robust last-known location resolver for self; prefers live userLocation, then member.position, then last path point, then mapCenter, then default
   const getSelfLastLocation = (): { lat: number; lng: number } | null => {
@@ -147,6 +150,12 @@ const SOSScreen = () => {
     }, 1000);
   };
 
+  const handleSOSClick = () => {
+    setRippleTs(Date.now());
+    setBurstTs(Date.now());
+    handleSOSPress();
+  };
+
   const handleOpenVolunteer = () => setVolunteerOpen(true);
   const handleCloseVolunteer = () => setVolunteerOpen(false);
   const handleOpenPolice = () => setPoliceOpen(true);
@@ -255,7 +264,7 @@ const SOSScreen = () => {
         const ringOffset = ringCircumference * (1 - progress);
         return (
           <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in">
-            <div className="relative w-full max-w-sm mx-responsive p-responsive rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-strong animate-scale-in">
+            <div className="relative w-full max-w-md sm:max-w-lg mx-responsive p-responsive rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-strong animate-scale-in">
               <div className="flex flex-col items-center">
                 <div className="relative">
                   <svg width={ringSize} height={ringSize} className="block">
@@ -307,14 +316,77 @@ const SOSScreen = () => {
       })()}
       <div className="px-responsive py-responsive space-y-responsive">
         {/* SOS Button - Enhanced for all devices */}
-        <div className="flex-1 flex items-center justify-center py-responsive min-h-[40vh] sm:min-h-[50vh]">
+        <div className="relative flex-1 flex items-center justify-center py-responsive min-h-[40vh] sm:min-h-[50vh]">
+            {/* Ambient interactive backdrop */}
+            <motion.div
+              aria-hidden
+              className="pointer-events-none absolute -top-8 -left-10 h-40 w-40 rounded-full bg-primary/15 blur-3xl"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
+            />
+            <motion.div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-10 -right-10 h-48 w-48 rounded-full bg-sky-blue/20 blur-3xl"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.9, ease: 'easeOut', delay: 0.1 }}
+            />
             <ResponsiveContainer size="full" padding="responsive">
               <div className="text-center animate-fade-in">
-                <div className="relative inline-block">
+                <motion.div
+                  className="relative inline-block will-change-transform"
+                  onMouseMove={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const rx = ((y / rect.height) - 0.5) * 12;
+                    const ry = ((x / rect.width) - 0.5) * -12;
+                    setTilt({ rx, ry });
+                  }}
+                  onMouseLeave={() => setTilt(null)}
+                  style={{ transform: tilt ? `perspective(700px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)` : undefined }}
+                >
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <span className="sos-halo" />
                     <span className="sos-halo-2" />
                   </div>
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute h-24 w-24 rounded-full bg-primary/20 blur-2xl"
+                    style={{
+                      left: tilt ? `${50 + (tilt.ry * 1.5)}%` : '50%',
+                      top: tilt ? `${50 - (tilt.rx * 1.5)}%` : '50%',
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                  />
+                  {/* Click ripple */}
+                  {rippleTs && (
+                    <motion.span
+                      key={rippleTs}
+                      className="pointer-events-none absolute inset-0 rounded-full border-2 border-destructive/40"
+                      initial={{ opacity: 0.6, scale: 0.95 }}
+                      animate={{ opacity: 0, scale: 1.3 }}
+                      transition={{ duration: 0.6, ease: 'easeOut' }}
+                      onAnimationComplete={() => setRippleTs(null)}
+                    />
+                  )}
+                  <motion.span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 z-[2]"
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 8, ease: 'linear' }}
+                  >
+                    <span className="absolute left-1/2 -translate-x-1/2 -top-1.5 h-1.5 w-1.5 rounded-full bg-primary/60 shadow-glow" />
+                  </motion.span>
+                  <motion.span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 z-[2]"
+                    animate={{ rotate: -360 }}
+                    transition={{ repeat: Infinity, duration: 10, ease: 'linear' }}
+                  >
+                    <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-sky-blue/60 shadow-glow" />
+                  </motion.span>
                 <ResponsiveButton
                   size="lg"
                     className={`relative z-[1] w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full text-responsive-lg font-bold shadow-strong shadow-glow ${
@@ -322,7 +394,7 @@ const SOSScreen = () => {
                       ? 'bg-destructive hover:bg-destructive animate-pulse scale-110' 
                       : 'bg-destructive hover:bg-destructive/90 hover:scale-110'
                   }`}
-                  onClick={handleSOSPress}
+                  onClick={handleSOSClick}
                     disabled={isEmergency || confirmCountdown !== null}
                     touchOptimized
                     animated
@@ -334,7 +406,33 @@ const SOSScreen = () => {
                     <span className="text-xs sm:text-sm font-normal hidden sm:block">{t('sosEmergency')}</span>
                   </div>
                 </ResponsiveButton>
+                {burstTs && (
+                  <>
+                    {Array.from({ length: 12 }).map((_, i) => {
+                      const angle = (i / 12) * Math.PI * 2;
+                      const distance = 28 + (i % 3) * 8;
+                      const dx = Math.cos(angle) * distance;
+                      const dy = Math.sin(angle) * distance;
+                      return (
+                        <motion.span
+                          key={`${burstTs}-${i}`}
+                          className="pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: i % 2 === 0 ? 'hsl(var(--primary))' : 'hsl(var(--destructive))' }}
+                          initial={{ x: 0, y: 0, opacity: 0.9, scale: 1 }}
+                          animate={{ x: dx, y: dy, opacity: 0, scale: 1.15 }}
+                          transition={{ duration: 0.7, ease: 'easeOut' }}
+                          onAnimationComplete={() => setBurstTs(null)}
+                        />
+                      );
+                    })}
+                  </>
+                )}
+                {/* subtle tip under button on larger screens */}
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>{t('tapToCancel') || 'Auto-sends in 5s. Tap cancel to stop.'}</span>
                 </div>
+                </motion.div>
                 <p className="mt-lg text-responsive-sm text-muted-foreground max-w-xs mx-auto animate-fade-in" style={{ animationDelay: '0.2s' }}>
                   {t('sosSubtitle')}
                 </p>

@@ -294,7 +294,7 @@ const HelpdeskScreen = () => {
   };
 
   return (
-    <div className="flex flex-col bg-gradient-subtle min-h-screen animate-fade-in">
+    <div className="flex flex-col bg-gradient-subtle animate-fade-in">
 
       {/* Tabs */}
       <div className="flex-1">
