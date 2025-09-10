@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, Users, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Shield, Users, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslation } from '@/context/TranslationContext';
 import { toast } from 'sonner';
@@ -71,19 +71,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = () => {
       >
         <Card className="shadow-elegant backdrop-blur-xl bg-white/95 border-white/20">
           <CardHeader className="relative text-center space-y-4 pb-8">
-            <div className="absolute right-2 top-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => navigate(-1)}
-                className="backdrop-blur-md bg-white/60 hover:bg-white/80 border-white/30 rounded-full h-9 w-9"
-                aria-label="Go back"
-                title="Back"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </div>
             <div className=" mx-auto inline-block mb-4">
               <motion.div
                 initial={{ scale: 0 }}
@@ -93,13 +80,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = () => {
               >
                 <svg viewBox="0 0 24 24" className="h-14 w-14 drop-shadow-lg" aria-label="Simhasth Logo in Shield">
                   <defs>
-                    <clipPath id="shield-clip">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </clipPath>
+                    <pattern id="logo-pattern" patternUnits="objectBoundingBox" width="1" height="1">
+                      <image xlinkHref={simhasthaLogo} x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid slice" />
+                    </pattern>
                   </defs>
-                  <g clipPath="url(#shield-clip)">
-                    <image href={simhasthaLogo} x="-6" y="-6" width="36" height="36" preserveAspectRatio="xMidYMid slice" />
-                  </g>
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="url(#logo-pattern)" />
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="none" stroke="white" strokeWidth="2" />
                 </svg>
               </motion.div>
