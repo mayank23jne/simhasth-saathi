@@ -36,8 +36,8 @@ const ProfileScreen = () => {
     groupId: 'GRP-2024-001',
     phone: '+91 98765 43210',
     emergencyContacts: [
-      { name: 'अजय शर्मा (बेटा)', phone: '+91 98765 43211', relation: 'पुत्र' },
-      { name: 'प्रिया शर्मा (बहू)', phone: '+91 98765 43212', relation: 'पुत्रवधू' }
+      { name: 'अजय शर्मा', phone: '+91 98765 43211', relation: 'पुत्र' },
+      { name: 'प्रिया शर्मा', phone: '+91 98765 43212', relation: 'पुत्रवधू' }
     ]
   }), []);
 

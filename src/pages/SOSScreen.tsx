@@ -1,5 +1,5 @@
 import React, { useState, memo } from 'react';
-import { AlertTriangle, Phone, Shield, Clock, Sparkles } from 'lucide-react';
+import { AlertTriangle, Phone, Shield, Clock, Sparkles, XCircle, Send, MapPin } from 'lucide-react';
 import { ResponsiveButton } from '@/components/ui/responsive-button';
 import { ResponsiveCard } from '@/components/ui/responsive-card';
 import { ResponsiveContainer } from '@/components/ui/responsive-container';
@@ -105,6 +105,8 @@ const SOSScreen = () => {
       setIsEmergency(false);
     }, 3000);
   };
+
+  const cancelButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const handleCancelSOS = () => {
     if (countdownIntervalRef.current != null) {
@@ -263,10 +265,20 @@ const SOSScreen = () => {
         const progress = (INITIAL_COUNTDOWN - confirmCountdown) / INITIAL_COUNTDOWN;
         const ringOffset = ringCircumference * (1 - progress);
         return (
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in">
+          <div 
+            className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in"
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="sos-dialog-title" 
+            aria-describedby="sos-dialog-desc"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') { e.preventDefault(); handleCancelSOS(); }
+              if (e.key === 'Enter') { e.preventDefault(); handleSendNow(); }
+            }}
+          >
             <div className="relative w-full max-w-md sm:max-w-lg mx-responsive p-responsive rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-strong animate-scale-in">
-              <div className="flex flex-col items-center">
-                <div className="relative">
+              <div className="flex flex-col items-center justify-center gap-md">
+                <div className="relative mx-auto">
                   <svg width={ringSize} height={ringSize} className="block">
                     <circle
                       stroke="hsl(var(--border))"
@@ -295,18 +307,34 @@ const SOSScreen = () => {
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 text-center text-sm text-muted-foreground">
+                <h2 id="sos-dialog-title" className="text-lg font-semibold text-card-foreground">{t('confirmSOS') || 'Confirm SOS'}</h2>
+                <div id="sos-dialog-desc" className="mt-1 text-center text-responsive-sm text-muted-foreground">
                   {(t('sosSending') || 'Sending SOS')} in {confirmCountdown}s...
                 </div>
-                <div className="mt-lg grid grid-cols-2 gap-sm w-full">
-                  <ResponsiveButton variant="outline" onClick={handleCancelSOS} className="flex-1">
-                    {t('cancel') || 'Cancel'}
+                <div className="mt-lg grid grid-cols-1 sm:grid-cols-2 gap-sm w-full justify-items-stretch">
+                  <ResponsiveButton
+                    variant="outline"
+                    onClick={handleCancelSOS}
+                    className="w-full h-12 sm:h-12 group border-red-200 text-red-600 hover:text-red-700 hover:border-red-300 hover:bg-red-50/60"
+                    ref={cancelButtonRef as any}
+                    autoFocus
+                  >
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <XCircle className="h-5 w-5 transition-transform group-hover:rotate-12" />
+                      <span className="font-medium">{t('cancel') || 'Cancel'}</span>
+                    </span>
                   </ResponsiveButton>
                   <ResponsiveButton 
                     onClick={handleSendNow} 
-                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground flex-1"
+                    className="relative w-full h-12 sm:h-12 overflow-hidden bg-gradient-to-b from-red-500 to-red-600 text-white shadow-[0_6px_20px_rgba(220,38,38,0.35)] hover:shadow-[0_8px_28px_rgba(220,38,38,0.45)] hover:from-red-500 hover:to-red-600 active:scale-[0.99]"
                   >
-                    {t('sendNow') || 'Send now'}
+                    <span className="pointer-events-none absolute inset-0">
+                      <span className="absolute -inset-1 opacity-20 blur-lg bg-[radial-gradient(ellipse_at_center,white,transparent_60%)]" />
+                    </span>
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Send className="h-5 w-5" />
+                      <span className="font-semibold tracking-wide">{t('sendNow') || 'Send now'}</span>
+                    </span>
                   </ResponsiveButton>
                 </div>
               </div>
@@ -316,7 +344,7 @@ const SOSScreen = () => {
       })()}
       <div className="px-responsive py-responsive space-y-responsive">
         {/* SOS Button - Enhanced for all devices */}
-        <div className="relative flex-1 flex items-center justify-center py-responsive min-h-[40vh] sm:min-h-[50vh]">
+        <div className="relative flex-1 flex items-center justify-center py-responsive">
             {/* Ambient interactive backdrop */}
             <motion.div
               aria-hidden
@@ -333,7 +361,7 @@ const SOSScreen = () => {
               transition={{ duration: 0.9, ease: 'easeOut', delay: 0.1 }}
             />
             <ResponsiveContainer size="full" padding="responsive">
-              <div className="text-center animate-fade-in">
+              <div className="text-center animate-fade-in max-w-xl mx-auto">
                 <motion.div
                   className="relative inline-block will-change-transform"
                   onMouseMove={(e) => {
@@ -346,6 +374,8 @@ const SOSScreen = () => {
                   }}
                   onMouseLeave={() => setTilt(null)}
                   style={{ transform: tilt ? `perspective(700px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)` : undefined }}
+                  animate={isEmergency ? undefined : { scale: [1, 1.02, 1] }}
+                  transition={isEmergency ? undefined : { duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
                 >
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <span className="sos-halo" />
@@ -371,56 +401,65 @@ const SOSScreen = () => {
                       onAnimationComplete={() => setRippleTs(null)}
                     />
                   )}
+                  {/* Pulse rings */}
                   <motion.span
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 z-[2]"
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 8, ease: 'linear' }}
-                  >
-                    <span className="absolute left-1/2 -translate-x-1/2 -top-1.5 h-1.5 w-1.5 rounded-full bg-primary/60 shadow-glow" />
-                  </motion.span>
+                    className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-white/20"
+                    initial={{ opacity: 0.35, scale: 1 }}
+                    animate={{ opacity: [0.35, 0.12, 0], scale: [1, 1.2, 1.35] }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut' }}
+                  />
                   <motion.span
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 z-[2]"
-                    animate={{ rotate: -360 }}
-                    transition={{ repeat: Infinity, duration: 10, ease: 'linear' }}
-                  >
-                    <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-sky-blue/60 shadow-glow" />
-                  </motion.span>
+                    className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-white/10"
+                    initial={{ opacity: 0.28, scale: 1 }}
+                    animate={{ opacity: [0.28, 0.1, 0], scale: [1, 1.35, 1.6] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeOut', delay: 0.6 }}
+                  />
+                  {/* Sheen sweep */}
+                  <span className="pointer-events-none absolute -inset-2 overflow-hidden rounded-full">
+                    <motion.span
+                      aria-hidden
+                      className="absolute top-0 -left-[150%] h-full w-1/3 rotate-45 bg-gradient-to-r from-white/25 via-white/10 to-transparent"
+                      animate={{ left: ['-150%', '150%'] }}
+                      transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  </span>
                 <ResponsiveButton
                   size="lg"
-                    className={`relative z-[1] w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full text-responsive-lg font-bold shadow-strong shadow-glow ${
+                    className={`relative z-[1] w-36 h-36 sm:w-48 sm:h-48 lg:w-56 lg:h-56 rounded-full text-white font-semibold shadow-strong shadow-glow border border-white/10 ring-4 ring-white/10 ring-offset-0 bg-[radial-gradient(circle_at_30%_28%,rgba(255,255,255,0.28),rgba(255,255,255,0)_42%),linear-gradient(to_bottom,#ef4444,#dc2626)] ${
                     isEmergency 
-                      ? 'bg-destructive hover:bg-destructive animate-pulse scale-110' 
-                      : 'bg-destructive hover:bg-destructive/90 hover:scale-110'
+                      ? 'animate-pulse scale-110' 
+                      : 'hover:scale-110'
                   }`}
                   onClick={handleSOSClick}
                     disabled={isEmergency || confirmCountdown !== null}
                     touchOptimized
                     animated
                     aria-label="Emergency SOS Button"
+                    aria-describedby="sos-subtitle"
                 >
-                  <div className="flex flex-col items-center gap-xs sm:gap-sm">
-                    <AlertTriangle className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
-                    <span className="text-sm sm:text-base lg:text-lg">{t('sosButton')}</span>
-                    <span className="text-xs sm:text-sm font-normal hidden sm:block">{t('sosEmergency')}</span>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <AlertTriangle className="h-7 w-7 sm:h-9 sm:w-9 lg:h-11 lg:w-11 text-white/95" />
+                    <span className="font-bold text-lg sm:text-xl leading-tight">{t('sosButton') || 'SOS'}</span>
+                    <span className="text-xs sm:text-sm leading-tight opacity-95">{t('sosEmergency')}</span>
                   </div>
                 </ResponsiveButton>
                 {burstTs && (
                   <>
-                    {Array.from({ length: 12 }).map((_, i) => {
-                      const angle = (i / 12) * Math.PI * 2;
-                      const distance = 28 + (i % 3) * 8;
+                    {Array.from({ length: 16 }).map((_, i) => {
+                      const angle = (i / 16) * Math.PI * 2;
+                      const distance = 28 + (i % 4) * 9;
                       const dx = Math.cos(angle) * distance;
                       const dy = Math.sin(angle) * distance;
                       return (
                         <motion.span
                           key={`${burstTs}-${i}`}
-                          className="pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full"
-                          style={{ backgroundColor: i % 2 === 0 ? 'hsl(var(--primary))' : 'hsl(var(--destructive))' }}
-                          initial={{ x: 0, y: 0, opacity: 0.9, scale: 1 }}
-                          animate={{ x: dx, y: dy, opacity: 0, scale: 1.15 }}
-                          transition={{ duration: 0.7, ease: 'easeOut' }}
+                          className="pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full shadow-sm"
+                          style={{ backgroundColor: i % 2 === 0 ? 'rgba(255,255,255,0.9)' : 'hsl(var(--destructive))' }}
+                          initial={{ x: 0, y: 0, opacity: 0.95, scale: 1 }}
+                          animate={{ x: dx, y: dy, opacity: 0, scale: 1.2 }}
+                          transition={{ duration: 0.9, ease: 'easeOut' }}
                           onAnimationComplete={() => setBurstTs(null)}
                         />
                       );
@@ -430,11 +469,11 @@ const SOSScreen = () => {
                 {/* subtle tip under button on larger screens */}
                 <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
                   <Sparkles className="h-3.5 w-3.5" />
-                  <span>{t('tapToCancel') || 'Auto-sends in 5s. Tap cancel to stop.'}</span>
+                  <span>{(t('tapToCancel') || 'Auto-sends in')} {INITIAL_COUNTDOWN}s. {t('tapCancelToStop') || 'Tap cancel to stop.'}</span>
                 </div>
                 </motion.div>
-                <p className="mt-lg text-responsive-sm text-muted-foreground max-w-xs mx-auto animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                  {t('sosSubtitle')}
+                <p id="sos-subtitle" className="mt-lg text-responsive-sm text-muted-foreground max-w-xs mx-auto animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                  {t('sosSubtitle') || 'Tap the SOS button to quickly notify nearby support.'}
                 </p>
               </div>
             </ResponsiveContainer>
@@ -442,7 +481,7 @@ const SOSScreen = () => {
 
         {/* Confirmation Alert - Enhanced responsive */}
         {showConfirmation && (
-          <Alert className="border-success bg-success/10 shadow-success animate-slide-up">
+          <Alert className="border-success bg-success/10 shadow-success animate-slide-up" role="status" aria-live="polite">
             <Shield className="h-4 w-4 text-success flex-shrink-0" />
             <AlertDescription className="text-success text-responsive-sm">
               {confirmCountdown !== null ? (
@@ -533,12 +572,12 @@ const SOSScreen = () => {
                 return (
                   <div
                     key={alert.id}
-                    className={`p-sm rounded-lg border transition-colors ${
-                      flash === 'responded' ? 'border-success bg-success/10' :
-                      flash === 'resolved' ? 'border-success bg-success/20' :
-                      alert.status === 'responded' ? 'border-primary bg-primary/5' :
-                      alert.status === 'resolved' ? 'border-success bg-success/5' :
-                      'border-muted bg-muted/30'
+                    className={`p-sm rounded-xl border bg-card/70 backdrop-blur transition-colors ${
+                      flash === 'responded' ? 'border-success/60 ring-1 ring-success/20' :
+                      flash === 'resolved' ? 'border-success/60 ring-1 ring-success/20' :
+                      alert.status === 'responded' ? 'border-primary/50' :
+                      alert.status === 'resolved' ? 'border-success/50' :
+                      'border-border'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-sm mb-xs">
@@ -548,20 +587,21 @@ const SOSScreen = () => {
                           {new Date(alert.createdAt).toLocaleString()}
                         </div>
                       </div>
-                      <div className={`text-xs px-xs py-0.5 rounded ${
-                        alert.status === 'resolved' ? 'bg-success/20 text-success' :
-                        alert.status === 'responded' ? 'bg-primary/20 text-primary' :
-                        'bg-warning/20 text-warning'
-                      }`}>
-                        {alert.status}
-                      </div>
+                      <div className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                        alert.status === 'resolved' ? 'bg-success/15 text-success' :
+                        alert.status === 'responded' ? 'bg-primary/15 text-primary' :
+                        'bg-warning/15 text-warning'
+                      }`}>{alert.status}</div>
                     </div>
-                    <div className="text-xs text-muted-foreground mb-sm">📍 {loc}</div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-sm">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="truncate">{loc}</span>
+                    </div>
                     <div className="flex flex-col sm:flex-row gap-xs">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                        className="rounded-full border-primary text-primary hover:bg-primary hover:text-primary-foreground px-3"
                         onClick={() => handleViewOnMap(meta?.lat, meta?.lng, `${name} SOS`)}
                       >
                         View on Map

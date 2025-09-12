@@ -1,5 +1,5 @@
 import React, { useState, useMemo, memo } from 'react';
-import { QrCode, Phone, Shield, MapPin, Camera, Search, UserX } from 'lucide-react';
+import { QrCode, Phone, Shield, MapPin, Camera, Search, UserX, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -306,57 +306,39 @@ const HelpdeskScreen = () => {
 
           {/* Digital Helpdesk Tab */}
            <TabsContent value="digital" className="flex-1 p-responsive space-y-responsive">
-            <div className="grid gap-responsive">
-              {digitalHelpOptions.map((option, index) => (
-                <Card key={index} className="cursor-pointer hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 card-interactive animate-fade-in" 
-                      onClick={option.action}
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                      tabIndex={0}
-                      role="button"
-                      onKeyDown={(e) => e.key === 'Enter' && option.action()}
-                      aria-label={option.title}>
-                  <CardContent className="p-responsive">
-                    <div className="flex items-center gap-responsive">
-                      <div className={`p-3 rounded-full ${option.bgColor} transition-transform duration-200 hover:scale-110`}>
-                        <option.icon className={`h-6 w-6 ${option.color}`} />
+            <div className="max-w-3xl mx-auto">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4">
+                {digitalHelpOptions.map((option, index) => (
+                  <Card key={index} className="group cursor-pointer rounded-2xl border border-border/60 bg-card/70 backdrop-blur hover:shadow-elegant transition-all duration-300 card-interactive animate-fade-in focus-within:ring-2 focus-within:ring-primary/30" 
+                        onClick={option.action}
+                        style={{ animationDelay: `${index * 0.1}s` }}
+                        tabIndex={0}
+                        role="button"
+                        onKeyDown={(e) => e.key === 'Enter' && option.action()}
+                        aria-label={option.title}>
+                    <CardContent className="px-4 py-3 sm:px-5 sm:py-4">
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className={`h-10 w-10 sm:h-12 sm:w-12 shrink-0 flex items-center justify-center rounded-full ${option.bgColor} transition-transform duration-200 group-hover:scale-110 will-change-transform`}>
+                          <option.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${option.color}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-card-foreground text-sm sm:text-base truncate">{option.title}</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1 sm:line-clamp-2">{option.subtitle}</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground group-hover:text-card-foreground/80 transition-transform duration-200 flex-shrink-0 translate-x-0 group-hover:translate-x-1" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-card-foreground text-responsive-base truncate">{option.title}</h3>
-                        <p className="text-responsive-sm text-muted-foreground line-clamp-2">{option.subtitle}</p>
-                      </div>
-                      <div className="text-muted-foreground transition-transform duration-200 hover:translate-x-1 flex-shrink-0">→</div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
-
-            {/* <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="text-lg">{t('emergencyNumbers')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                  <span className="font-medium">{t('policeControlRoom')}</span>
-                  <span className="font-mono text-primary">100</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                  <span className="font-medium">{t('medicalEmergency')}</span>
-                  <span className="font-mono text-primary">108</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                  <span className="font-medium">{t('simhasthHelpline')}</span>
-                  <span className="font-mono text-primary">1800-123-4567</span>
-                </div>
-              </CardContent>
-            </Card> */}
           </TabsContent>
 
           {/* Lost & Found Tab */}
-          <TabsContent value="lost-found" className="flex-1 p-4 space-y-4">
+          <TabsContent value="lost-found" className="flex-1 p-responsive space-y-responsive">
             {!showQRScanner ? (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="max-w-4xl mx-auto grid grid-cols-2 gap-responsive">
                   <Button
                     variant="outline"
                     className="h-20 flex-col border-primary text-primary hover:bg-primary hover:text-primary-foreground"
@@ -375,7 +357,7 @@ const HelpdeskScreen = () => {
                   </Button>
                 </div>
 
-                <Card>
+                <Card className="max-w-4xl mx-auto">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Search className="h-5 w-5" />
@@ -435,13 +417,13 @@ const HelpdeskScreen = () => {
                   </div>
                 </div>
                 <p className="text-muted-foreground">{t('scanQRInstruction')}</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
                   <Button onClick={simulateScan} className="w-full">Scan</Button>
                   <Button variant="outline" onClick={() => setShowQRScanner(false)} className="w-full">{t('back')}</Button>
                 </div>
 
                 {scannedPerson && (
-                  <div className="mt-4 text-left">
+                  <div className="mt-4 text-left max-w-md mx-auto">
                     <Card>
                       <CardContent className="p-4 space-y-1">
                         <div className="font-semibold">{scannedPerson.name} • {scannedPerson.age}</div>

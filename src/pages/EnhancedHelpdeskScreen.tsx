@@ -14,7 +14,8 @@ import {
   Heart,
   AlertTriangle,
   CheckCircle,
-  User
+  User,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -272,7 +273,7 @@ const EnhancedHelpdeskScreen = () => {
       />
       
       <div className="min-h-screen bg-background pb-nav">
-        <div className="px-lg py-lg space-y-lg">
+        <div className="px-lg py-lg space-y-lg max-w-5xl mx-auto">
           {/* Search Bar */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -280,7 +281,7 @@ const EnhancedHelpdeskScreen = () => {
               placeholder="सेवा या सहायता खोजें..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12"
+              className="pl-10 h-11 rounded-xl shadow-soft"
             />
           </div>
 
@@ -291,7 +292,7 @@ const EnhancedHelpdeskScreen = () => {
                 key={category.id}
                 variant={activeCategory === category.id ? 'default' : 'outline'}
                 size="sm"
-                className="whitespace-nowrap"
+                className="whitespace-nowrap rounded-full"
                 onClick={() => setActiveCategory(category.id)}
               >
                 <category.icon className="h-3 w-3 mr-1" />
@@ -306,11 +307,11 @@ const EnhancedHelpdeskScreen = () => {
               <Button
                 variant="destructive"
                 size="lg"
-                className="w-full h-20 flex-col gap-2"
+                className="w-full h-20 flex-col gap-1.5 rounded-2xl shadow-[0_8px_20px_rgba(220,38,38,0.18)]"
                 onClick={() => navigate('/sos')}
               >
                 <AlertTriangle className="h-6 w-6" />
-                <span className="text-sm font-medium">SOS आपातकाल</span>
+                <span className="text-sm font-semibold tracking-wide">SOS आपातकाल</span>
               </Button>
             </motion.div>
 
@@ -318,11 +319,11 @@ const EnhancedHelpdeskScreen = () => {
               <Button
                 variant="outline"
                 size="lg"
-                className="w-full h-20 flex-col gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                className="w-full h-20 flex-col gap-1.5 border-primary text-primary hover:bg-primary hover:text-primary-foreground rounded-2xl shadow-[0_8px_20px_rgba(14,165,233,0.08)]"
                 onClick={() => setIsQRScannerOpen(true)}
               >
                 <Camera className="h-6 w-6" />
-                <span className="text-sm font-medium">QR स्कैन करें</span>
+                <span className="text-sm font-semibold tracking-wide">QR स्कैन करें</span>
               </Button>
             </motion.div>
           </div>
@@ -330,7 +331,7 @@ const EnhancedHelpdeskScreen = () => {
           {/* Help Services */}
           <div>
             <h2 className="text-lg font-semibold mb-md">सहायता सेवाएं</h2>
-            <div className="grid grid-cols-1 gap-md">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-sm md:gap-md">
               <AnimatePresence>
                 {filteredServices.map((service, index) => (
                   <motion.div
@@ -343,19 +344,19 @@ const EnhancedHelpdeskScreen = () => {
                     whileTap={{ scale: 0.98 }}
                   >
                     <Card 
-                      className="cursor-pointer transition-all hover:shadow-medium border-card-border"
+                      className="cursor-pointer transition-all hover:shadow-medium border-card-border rounded-2xl"
                       onClick={() => handleServiceClick(service)}
                     >
                       <CardContent className="p-lg">
                         <div className="flex items-start gap-md">
-                          <div className="p-3 bg-primary/10 rounded-lg">
-                            <service.icon className="h-6 w-6 text-primary" />
+                          <div className="p-3 bg-primary/10 rounded-xl">
+                            <service.icon className="h-5 w-5 text-primary/80" />
                           </div>
                           <div className="flex-1">
                             <div className="flex items-start justify-between mb-2">
-                              <h3 className="font-semibold text-foreground">{service.title}</h3>
+                              <h3 className="font-semibold text-foreground text-base">{service.title}</h3>
                               {service.available ? (
-                                <Badge variant="default" className="bg-success text-success-foreground">
+                                <Badge variant="default" className="bg-success text-success-foreground h-5 px-2 text-[11px] rounded-full">
                                   <CheckCircle className="h-3 w-3 mr-1" />
                                   उपलब्ध
                                 </Badge>
@@ -363,7 +364,7 @@ const EnhancedHelpdeskScreen = () => {
                                 <Badge variant="destructive">बंद</Badge>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground mb-3">{service.description}</p>
+                            <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{service.description}</p>
                             
                             {service.features && (
                               <div className="flex flex-wrap gap-1 mb-2">
@@ -382,8 +383,9 @@ const EnhancedHelpdeskScreen = () => {
                                   <span>{service.contact}</span>
                                 </div>
                               )}
-                              <Button size="sm" variant="ghost" className="h-6 text-xs">
-                                और जानकारी →
+                              <Button size="sm" variant="ghost" className="h-6 text-xs gap-1">
+                                और जानकारी
+                                <ChevronRight className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>
@@ -395,6 +397,9 @@ const EnhancedHelpdeskScreen = () => {
               </AnimatePresence>
             </div>
           </div>
+
+          {/* Divider */}
+          <div className="h-px bg-border/70 my-lg rounded-full" />
 
           {/* Nearby Help Centers */}
           <div>
@@ -409,13 +414,13 @@ const EnhancedHelpdeskScreen = () => {
                   whileHover={{ scale: 1.01 }}
                 >
                   <Card 
-                    className="cursor-pointer hover:shadow-medium transition-all"
+                    className="cursor-pointer hover:shadow-medium transition-all rounded-2xl"
                     onClick={() => handleCenterClick(center)}
                   >
                     <CardContent className="p-lg">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-foreground mb-1">{center.name}</h3>
+                          <h3 className="font-semibold text-foreground mb-1 text-base">{center.name}</h3>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                             <MapPin className="h-3 w-3" />
                             <span>{center.location}</span>
@@ -485,26 +490,26 @@ const EnhancedHelpdeskScreen = () => {
           </div>
 
           {/* Emergency Numbers */}
-          <Card className="bg-destructive/5 border-destructive/20">
+          <Card className="bg-destructive/5 border-destructive/20 rounded-2xl">
             <CardHeader className="pb-md">
               <CardTitle className="text-base flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-5 w-5" />
                 आपातकालीन नंबर
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-md">
+            <CardContent className="grid grid-cols-1 gap-sm sm:gap-md">
               {emergencyNumbers.map((emergency) => (
                 <div 
                   key={emergency.number}
-                  className="flex items-center justify-between p-md bg-background rounded-lg border"
+                  className="flex items-center justify-between p-sm sm:p-md bg-background rounded-xl border"
                 >
                   <div className="flex items-center gap-md">
                     <div className="p-2 bg-destructive/10 rounded-lg">
                       <emergency.icon className="h-4 w-4 text-destructive" />
                     </div>
                     <div>
-                      <p className="font-medium text-sm">{emergency.name}</p>
-                      <p className="text-xs text-muted-foreground">{emergency.number}</p>
+                      <p className="font-medium text-sm leading-tight">{emergency.name}</p>
+                      <p className="text-xs text-muted-foreground leading-tight">{emergency.number}</p>
                     </div>
                   </div>
                   <Button
