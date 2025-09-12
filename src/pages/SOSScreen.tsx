@@ -329,26 +329,26 @@ const SOSScreen = () => {
                 >
                   
                   {/* Outermost Circle with Radar Indicators */}
-                  <div aria-hidden className="absolute w-80 h-80 sm:w-96 sm:h-96 lg:w-[28rem] lg:h-[28rem] rounded-full z-20 pointer-events-none">
+                  <div className="absolute w-80 h-80 sm:w-96 sm:h-96 lg:w-[28rem] lg:h-[28rem] rounded-full">
                     {/* Radar Indicator Lines */}
                     {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, index) => (
                       <motion.div
                         key={angle}
-                        className="absolute w-8 sm:w-10 h-1 bg-destructive rounded-full drop-shadow"
+                        className="absolute w-6 h-1 bg-destructive rounded-full"
                         style={{
                           top: '50%',
                           left: '50%',
                           transformOrigin: '0 50%',
                           transform: `translate(-50%, -50%) rotate(${angle}deg) translateX(${150}px)`,
                         }}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 0.9, scale: 1 }}
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: 0.8, scale: 1 }}
                         transition={{ 
                           delay: index * 0.1, 
-                          duration: 0.6,
+                          duration: 0.5,
                           repeat: Infinity,
-                          repeatType: 'reverse',
-                          repeatDelay: 1.6
+                          repeatType: "reverse",
+                          repeatDelay: 2
                         }}
                       />
                     ))}
@@ -356,9 +356,9 @@ const SOSScreen = () => {
 
                   {/* Fourth Concentric Circle (Outermost) */}
                   <motion.div 
-                    className="absolute z-10 w-80 h-80 sm:w-96 sm:h-96 lg:w-[28rem] lg:h-[28rem] rounded-full bg-destructive/5 border border-destructive/10"
+                    className="absolute w-80 h-80 sm:w-96 sm:h-96 lg:w-[28rem] lg:h-[28rem] rounded-full bg-destructive/5 border border-destructive/10"
                     animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                   />
 
                   {/* Third Concentric Circle */}
@@ -404,15 +404,15 @@ const SOSScreen = () => {
                         ? 'bg-destructive hover:bg-destructive animate-pulse scale-110' 
                         : 'bg-destructive hover:bg-destructive/90 hover:scale-105 active:scale-95'
                       } 
-                      text-destructive-foreground font-bold shadow-2xl transform transition-all duration-200 
-                      border-4 border-destructive-foreground/20 backdrop-blur-sm`}
+                      text-white font-bold shadow-2xl transform transition-all duration-200 
+                      border-4 border-white/20 backdrop-blur-sm`}
                   >
                     <div className="flex flex-col items-center justify-center space-y-1">
                       <AlertTriangle 
-                        className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-destructive-foreground drop-shadow-lg" 
+                        className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-white drop-shadow-lg" 
                         strokeWidth={2.5}
                       />
-                      <span className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-wider drop-shadow-lg text-destructive-foreground">
+                      <span className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-wider drop-shadow-lg">
                         SOS
                       </span>
                     </div>
