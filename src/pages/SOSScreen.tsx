@@ -315,121 +315,127 @@ const SOSScreen = () => {
         );
       })()}
       <div className="px-responsive py-responsive space-y-responsive">
-        {/* Modern SOS Button with Concentric Circles */}
-        <div className="relative flex-1 flex items-center justify-center py-responsive min-h-[60vh]">
+        {/* SOS Button - Enhanced for all devices */}
+        <div className="relative flex-1 flex items-center justify-center py-responsive min-h-[40vh] sm:min-h-[50vh]">
+            {/* Ambient interactive backdrop */}
+            <motion.div
+              aria-hidden
+              className="pointer-events-none absolute -top-8 -left-10 h-40 w-40 rounded-full bg-primary/15 blur-3xl"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
+            />
+            <motion.div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-10 -right-10 h-48 w-48 rounded-full bg-sky-blue/20 blur-3xl"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.9, ease: 'easeOut', delay: 0.1 }}
+            />
             <ResponsiveContainer size="full" padding="responsive">
-              <div className="flex flex-col items-center justify-center text-center space-y-responsive">
-                
-                {/* Main SOS Button Container with Concentric Circles */}
-                <motion.div 
-                  className="relative flex items-center justify-center"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
+              <div className="text-center animate-fade-in">
+                <motion.div
+                  className="relative inline-block will-change-transform"
+                  onMouseMove={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const rx = ((y / rect.height) - 0.5) * 12;
+                    const ry = ((x / rect.width) - 0.5) * -12;
+                    setTilt({ rx, ry });
+                  }}
+                  onMouseLeave={() => setTilt(null)}
+                  style={{ transform: tilt ? `perspective(700px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)` : undefined }}
                 >
-                  
-                  {/* Outermost Circle with Radar Indicators */}
-                  <div className="absolute w-80 h-80 sm:w-96 sm:h-96 lg:w-[28rem] lg:h-[28rem] rounded-full">
-                    {/* Radar Indicator Lines */}
-                    {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, index) => (
-                      <motion.div
-                        key={angle}
-                        className="absolute w-6 h-1 bg-destructive rounded-full"
-                        style={{
-                          top: '50%',
-                          left: '50%',
-                          transformOrigin: '0 50%',
-                          transform: `translate(-50%, -50%) rotate(${angle}deg) translateX(${150}px)`,
-                        }}
-                        initial={{ opacity: 0, scale: 0 }}
-                        animate={{ opacity: 0.8, scale: 1 }}
-                        transition={{ 
-                          delay: index * 0.1, 
-                          duration: 0.5,
-                          repeat: Infinity,
-                          repeatType: "reverse",
-                          repeatDelay: 2
-                        }}
-                      />
-                    ))}
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <span className="sos-halo" />
+                    <span className="sos-halo-2" />
                   </div>
-
-                  {/* Fourth Concentric Circle (Outermost) */}
-                  <motion.div 
-                    className="absolute w-80 h-80 sm:w-96 sm:h-96 lg:w-[28rem] lg:h-[28rem] rounded-full bg-destructive/5 border border-destructive/10"
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute h-24 w-24 rounded-full bg-primary/20 blur-2xl"
+                    style={{
+                      left: tilt ? `${50 + (tilt.ry * 1.5)}%` : '50%',
+                      top: tilt ? `${50 - (tilt.rx * 1.5)}%` : '50%',
+                      transform: 'translate(-50%, -50%)'
+                    }}
                   />
-
-                  {/* Third Concentric Circle */}
-                  <motion.div 
-                    className="absolute w-64 h-64 sm:w-72 sm:h-72 lg:w-80 lg:h-80 rounded-full bg-destructive/10 border border-destructive/15"
-                    animate={{ scale: [1, 1.03, 1] }}
-                    transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-                  />
-
-                  {/* Second Concentric Circle */}
-                  <motion.div 
-                    className="absolute w-48 h-48 sm:w-56 sm:h-56 lg:w-64 lg:h-64 rounded-full bg-destructive/15 border border-destructive/20"
-                    animate={{ scale: [1, 1.02, 1] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  />
-
-                  {/* First Concentric Circle */}
-                  <motion.div 
-                    className="absolute w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full bg-destructive/20 border border-destructive/25"
-                    animate={{ scale: [1, 1.01, 1] }}
-                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                  />
-
-                  {/* Click ripple effect */}
+                  {/* Click ripple */}
                   {rippleTs && (
-                    <motion.div
+                    <motion.span
                       key={rippleTs}
-                      className="absolute w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full border-2 border-destructive/40"
-                      initial={{ opacity: 0.6, scale: 0.8 }}
-                      animate={{ opacity: 0, scale: 2 }}
-                      transition={{ duration: 1, ease: 'easeOut' }}
+                      className="pointer-events-none absolute inset-0 rounded-full border-2 border-destructive/40"
+                      initial={{ opacity: 0.6, scale: 0.95 }}
+                      animate={{ opacity: 0, scale: 1.3 }}
+                      transition={{ duration: 0.6, ease: 'easeOut' }}
                       onAnimationComplete={() => setRippleTs(null)}
                     />
                   )}
-
-                  {/* Main SOS Button */}
-                  <ResponsiveButton
-                    size="lg"
-                    onClick={handleSOSClick}
-                    disabled={isEmergency || confirmCountdown !== null}
-                    className={`relative z-10 w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full 
-                      ${isEmergency 
-                        ? 'bg-destructive hover:bg-destructive animate-pulse scale-110' 
-                        : 'bg-destructive hover:bg-destructive/90 hover:scale-105 active:scale-95'
-                      } 
-                      text-white font-bold shadow-2xl transform transition-all duration-200 
-                      border-4 border-white/20 backdrop-blur-sm`}
+                  <motion.span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 z-[2]"
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 8, ease: 'linear' }}
                   >
-                    <div className="flex flex-col items-center justify-center space-y-1">
-                      <AlertTriangle 
-                        className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-white drop-shadow-lg" 
-                        strokeWidth={2.5}
-                      />
-                      <span className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-wider drop-shadow-lg">
-                        SOS
-                      </span>
-                    </div>
-                  </ResponsiveButton>
-                </motion.div>
-
-                {/* Instructions Text */}
-                <motion.div 
-                  className="mt-8 text-center max-w-sm"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.5 }}
+                    <span className="absolute left-1/2 -translate-x-1/2 -top-1.5 h-1.5 w-1.5 rounded-full bg-primary/60 shadow-glow" />
+                  </motion.span>
+                  <motion.span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 z-[2]"
+                    animate={{ rotate: -360 }}
+                    transition={{ repeat: Infinity, duration: 10, ease: 'linear' }}
+                  >
+                    <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-sky-blue/60 shadow-glow" />
+                  </motion.span>
+                <ResponsiveButton
+                  size="lg"
+                    className={`relative z-[1] w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full text-responsive-lg font-bold shadow-strong shadow-glow ${
+                    isEmergency 
+                      ? 'bg-destructive hover:bg-destructive animate-pulse scale-110' 
+                      : 'bg-destructive hover:bg-destructive/90 hover:scale-110'
+                  }`}
+                  onClick={handleSOSClick}
+                    disabled={isEmergency || confirmCountdown !== null}
+                    touchOptimized
+                    animated
+                    aria-label="Emergency SOS Button"
                 >
-                  <p className="text-lg sm:text-xl lg:text-2xl font-semibold text-foreground/80 leading-relaxed">
-                    Press the SOS button for immediate help
-                  </p>
+                  <div className="flex flex-col items-center gap-xs sm:gap-sm">
+                    <AlertTriangle className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
+                    <span className="text-sm sm:text-base lg:text-lg">{t('sosButton')}</span>
+                    <span className="text-xs sm:text-sm font-normal hidden sm:block">{t('sosEmergency')}</span>
+                  </div>
+                </ResponsiveButton>
+                {burstTs && (
+                  <>
+                    {Array.from({ length: 12 }).map((_, i) => {
+                      const angle = (i / 12) * Math.PI * 2;
+                      const distance = 28 + (i % 3) * 8;
+                      const dx = Math.cos(angle) * distance;
+                      const dy = Math.sin(angle) * distance;
+                      return (
+                        <motion.span
+                          key={`${burstTs}-${i}`}
+                          className="pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: i % 2 === 0 ? 'hsl(var(--primary))' : 'hsl(var(--destructive))' }}
+                          initial={{ x: 0, y: 0, opacity: 0.9, scale: 1 }}
+                          animate={{ x: dx, y: dy, opacity: 0, scale: 1.15 }}
+                          transition={{ duration: 0.7, ease: 'easeOut' }}
+                          onAnimationComplete={() => setBurstTs(null)}
+                        />
+                      );
+                    })}
+                  </>
+                )}
+                {/* subtle tip under button on larger screens */}
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>{t('tapToCancel') || 'Auto-sends in 5s. Tap cancel to stop.'}</span>
+                </div>
                 </motion.div>
+                <p className="mt-lg text-responsive-sm text-muted-foreground max-w-xs mx-auto animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                  {t('sosSubtitle')}
+                </p>
               </div>
             </ResponsiveContainer>
         </div>
