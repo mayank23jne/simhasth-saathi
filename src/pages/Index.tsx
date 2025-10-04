@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SuspenseFallback } from '@/components/SuspenseFallback';
+import { Login } from '@/components/login';
 const Onboarding = React.lazy(() => import('@/components/onboarding').then(m => ({ default: m.Onboarding })));
 // const Login = React.lazy(() => import('@/components/login').then(m => ({ default: m.Login })));
 const GroupSetup = React.lazy(() => import('@/components/group-setup').then(m => ({ default: m.GroupSetup })));
@@ -11,18 +12,24 @@ const Index = () => {
   const navigate = useNavigate();
 
   // Initialize based on localStorage lazily to avoid extra reads on re-renders
-  const [currentStep, setCurrentStep] = useState<AppStep>(() =>
-    localStorage.getItem('groupEnabled') === 'true' ? 'dashboard' : 'onboarding'
-  );
+  const [currentStep, setCurrentStep] = useState<AppStep>(() => {
+    const authed = !!localStorage.getItem('authToken');
+    if (!authed) return 'onboarding';
+    const groupEnabled = localStorage.getItem('groupEnabled') === 'true';
+    const hasGroupId = !!localStorage.getItem('groupId');
+    return (groupEnabled || hasGroupId) ? 'dashboard' : 'group-setup';
+  });
   const [language, setLanguage] = useState('en');
 
   const handleLanguageComplete = useCallback((selectedLanguage: string) => {
     setLanguage(selectedLanguage);
+    setCurrentStep('login');
     // Skip login for now; go directly to group setup
-    setCurrentStep('group-setup');
+    // setCurrentStep('group-setup');
   }, []);
 
   const handleLoginSuccess = useCallback(() => {
+    // After authentication, force user through group setup before dashboard
     setCurrentStep('group-setup');
   }, []);
 
@@ -48,14 +55,14 @@ const Index = () => {
         </ErrorBoundary>
       );
 
-    // case 'login':
-    //   return (
-    //     <ErrorBoundary>
-    //       <Suspense fallback={<SuspenseFallback />}>
-    //         <Login onLoginSuccess={handleLoginSuccess} />
-    //       </Suspense>
-    //     </ErrorBoundary>
-    //   );
+    case 'login':
+      return (
+        <ErrorBoundary>
+          <Suspense fallback={<SuspenseFallback />}>
+            <Login onLoginSuccess={handleLoginSuccess} />
+          </Suspense>
+        </ErrorBoundary>
+      );
 
     case 'group-setup':
       return (

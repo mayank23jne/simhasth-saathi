@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
+import { useAppStore } from '@/store/appStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ArrowRight, Phone, Shield, UserCheck } from 'lucide-react';
 import { useTranslation } from '@/context/TranslationContext';
+import { authService } from '@/services/authService';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -11,26 +15,114 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const { t } = useTranslation(); // ✅ use context for real-time translation
+  const setUserName = useAppStore(s => s.setUserName);
+  const setUserPhone = useAppStore(s => s.setUserPhone);
+  const setUserId = useAppStore(s => s.setUserId);
+  const setUserRole = useAppStore(s => s.setUserRole);
+  const setGroup = useAppStore(s => s.setGroup);
+  const addMember = useAppStore(s => s.addMember);
+  const clearMembers = useAppStore(s => s.clearMembers);
+  const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [age, setAge] = useState('');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const otpSubtitle = t('otpSubtitle')?.replace('{phoneNumber}', phoneNumber) || '';
 
   const handleSendOtp = async () => {
-    if (phoneNumber.length < 10) return;
+    const parsedAge = Number(age);
+    const isRegisterInvalid = phoneNumber.length < 10 || fullName.trim().length < 2 || !parsedAge || Number.isNaN(parsedAge) || parsedAge < 1;
+    const isLoginInvalid = phoneNumber.length < 10;
+    if (authMode === 'register' ? isRegisterInvalid : isLoginInvalid) return;
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setStep('otp');
-    setIsLoading(false);
+    try {
+      console.info('Sending OTP for', authMode);
+      if (authMode === 'login') {
+        const res = await authService.loginAdmin({ mobileNumber: phoneNumber });
+        setPendingUserId((res as any)?.data?.userId || (res as any)?.userId || null);
+        if (res?.success) {
+          navigate('/dashboard');
+        }
+        console.info('Login Admin Response:', res);
+        // setStep('otp');
+        // toast.success('OTP sent');
+        // return;
+      } else {
+        const reg = await authService.registerAdmin({ fullName: fullName.trim(), mobileNumber: phoneNumber, age: parsedAge });
+        console.log('Register Admin Response:', reg);
+        if (reg?.success) {
+          setPendingUserId((reg as any)?.data?.userId || (reg as any)?.userId || (reg as any)?.data?.userId || (reg as any)?.userId || null);
+          setStep('otp');
+          toast.success('OTP sent');
+        }
+        // const loginRes = await authService.loginAdmin({ mobileNumber: phoneNumber });
+
+      }
+      // Register flow
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to send OTP');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVerifyOtp = async () => {
     if (otp.length < 6) return;
+    if (!pendingUserId) {
+      toast.error('Missing session. Please resend OTP.');
+      return;
+    }
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    onLoginSuccess();
+    try {
+      console.info('Verifying OTP for user:', pendingUserId); 
+      const res = await authService.verifyOtp({ userId: pendingUserId, otp, userType: 'admin' });
+      const data: any = (res as any)?.data || {};
+      const user: any = data.user || {};
+      const nextUserId = user?.id != null ? String(user.id) : (res as any)?.userId;
+      const nextName = user?.fullName || fullName.trim();
+      const nextPhone = user?.mobileNumber || phoneNumber;
+      const nextRole = user?.isAdmin ? 'admin' : 'member';
+      const nextGroup = user?.groupId != null ? String(user.groupId) : null;
+      try {
+        if (nextName) localStorage.setItem('userName', nextName);
+        if (nextPhone) localStorage.setItem('userPhone', nextPhone);
+        if (user?.age != null) localStorage.setItem('userAge', String(user.age));
+      } catch {}
+      if (nextUserId) setUserId(String(nextUserId));
+      setUserRole(nextRole);
+      setUserName(nextName);
+      setUserPhone(nextPhone);
+      if (nextGroup) setGroup(nextGroup);
+
+      // Populate group members from API response, if present
+      if (Array.isArray(data.groupMembers)) {
+        try {
+          clearMembers();
+          data.groupMembers.forEach((m: any) => {
+            const memberId = m?.id != null ? String(m.id) : undefined;
+            if (!memberId) return;
+            // Avoid duplicating self; self is handled by store/GroupContext when location updates
+            if (memberId === String(nextUserId)) return;
+            addMember({
+              id: memberId,
+              name: m?.fullName || 'Member',
+              phone: m?.mobileNumber,
+              role: (m?.isAdmin ? 'admin' : 'member') as any,
+            } as any);
+          });
+        } catch {}
+      }
+      toast.success('Login successful');
+      onLoginSuccess();
+    } catch (err: any) {
+      toast.error(err?.message || 'OTP verification failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGuestMode = () => {
@@ -55,11 +147,59 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </p>
         </div>
 
+        {/* Mode toggle */}
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant={authMode === 'register' ? 'default' : 'outline'}
+            onClick={() => setAuthMode('register')}
+            className="w-full"
+            disabled={isLoading}
+          >
+            Register
+          </Button>
+          <Button
+            variant={authMode === 'login' ? 'default' : 'outline'}
+            onClick={() => setAuthMode('login')}
+            className="w-full"
+            disabled={isLoading}
+          >
+            Login
+          </Button>
+        </div>
+
         {/* Form */}
         <Card className="p-4 sm:p-6 border-card-border shadow-medium bg-card/95 backdrop-blur-sm rounded-lg sm:rounded-xl transition-all duration-300 hover:shadow-elegant">
           <div className="space-y-4 sm:space-y-6">
             {step === 'phone' ? (
               <div className="space-y-4">
+                {authMode === 'register' && (
+                  <>
+                    <label className="text-responsive-xs font-medium text-foreground block">
+                      {t('nameLabel') || 'Full Name'}
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder={t('namePlaceholder') || 'Your full name'}
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="min-h-input text-responsive-sm focus-ring transition-all duration-200"
+                      maxLength={60}
+                      aria-label="Enter your full name"
+                    />
+                    <label className="text-responsive-xs font-medium text-foreground block">
+                      Age
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="Your age"
+                      value={age}
+                      onChange={(e) => setAge(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="min-h-input text-responsive-sm focus-ring transition-all duration-200"
+                      maxLength={3 as unknown as number}
+                      aria-label="Enter your age"
+                    />
+                  </>
+                )}
                 <label className="text-responsive-xs font-medium text-foreground block">
                   {t('phoneLabel')}
                 </label>
@@ -77,7 +217,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 </div>
                 <Button
                   onClick={handleSendOtp}
-                  disabled={phoneNumber.length < 10 || isLoading}
+                  disabled={authMode === 'register' ? (phoneNumber.length < 10 || fullName.trim().length < 2 || !age || Number(age) < 1 || isLoading) : (phoneNumber.length < 10 || isLoading)}
                   className="w-full min-h-button bg-primary hover:bg-primary/90 text-primary-foreground focus-ring touch-button transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Send OTP to your phone"
                 >

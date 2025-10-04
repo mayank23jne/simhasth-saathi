@@ -1,4 +1,4 @@
-import React, { useMemo, memo } from 'react';
+import React, { memo, useCallback, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusIndicator } from '@/components/ui/status-indicator';
@@ -16,6 +16,8 @@ import {
 import { useTranslation } from '@/context/TranslationContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useAppStore } from '@/store/appStore';
+import QRScanner from '@/components/QRScanner';
 
 interface DashboardProps {
   groupCode: string;
@@ -24,11 +26,23 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ groupCode }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const mockGroupMembers = useMemo(() => ([
-    { name: 'राम शर्मा', status: 'safe', lastSeen: '2 min ago' },
-    { name: 'सीता देवी', status: 'safe', lastSeen: '5 min ago' },
-    { name: 'लक्ष्मण कुमार', status: 'safe', lastSeen: '1 min ago' },
-  ]), []);
+  const members = useAppStore((s) => s.members);
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  const formatLastSeen = useCallback((ts?: number) => {
+    if (!ts) return '';
+    try {
+      const diff = Date.now() - ts;
+      const min = Math.max(0, Math.floor(diff / 60000));
+      if (min < 1) return 'now';
+      if (min === 1) return '1 min ago';
+      if (min < 60) return `${min} min ago`;
+      const hr = Math.floor(min / 60);
+      return hr === 1 ? '1 hr ago' : `${hr} hrs ago`;
+    } catch {
+      return '';
+    }
+  }, []);
 
   const copyGroupCode = () => {
     if (!groupCode) return;
@@ -39,6 +53,15 @@ const Dashboard: React.FC<DashboardProps> = ({ groupCode }) => {
   const shareGroupLocation = () => {
     toast.success(t('locationShared') || 'Location shared');
   };
+
+  const handleScanResult = useCallback((result: any) => {
+    try {
+      const label = typeof result === 'string' ? result.slice(0, 32) : (result?.name || result?.groupCode || 'QR');
+      toast.success(`Scanned: ${label}`);
+    } catch {
+      toast.success('QR scanned');
+    }
+  }, []);
 
   return (
     <div className="min-h-screen-safe bg-gradient-to-br from-saffron-light/30 via-background to-sky-blue-light/30">
@@ -66,45 +89,68 @@ const Dashboard: React.FC<DashboardProps> = ({ groupCode }) => {
           </div>
         </Card> */}
         {/* Group Status Card */}
-        <Card className="p-4 sm:p-6 border-card-border shadow-medium bg-card/95 backdrop-blur-sm card-subtle rounded-lg sm:rounded-xl">
-          <div className="space-y-3 sm:space-y-4">
+        <Card className="relative overflow-hidden p-4 sm:p-6 border-card-border shadow-medium bg-card/95 backdrop-blur-sm rounded-lg sm:rounded-xl">
+          {/* decorative gradient halo */}
+          <div className="pointer-events-none absolute -top-16 inset-x-0 h-32 bg-gradient-to-r from-orange-300/30 via-amber-300/30 to-sky-300/30 blur-3xl" />
+          <div className="relative space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h2 className="text-responsive-lg font-semibold text-foreground font-heading">{t('groupStatus')}</h2>
-                <span className="hidden sm:inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-muted/60 border border-border/60 text-xs font-mono text-foreground">
+                <h2 className="text-responsive-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 font-heading">
+                  {t('groupStatus')}
+                </h2>
+                <button
+                  onClick={copyGroupCode}
+                  className="hidden sm:inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/70 border border-border/60 text-xs font-mono text-foreground shadow-sm hover:shadow-md active:scale-95 transition-all"
+                  aria-label="Copy group code"
+                >
                   {groupCode}
-                </span>
+                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
               </div>
               <StatusIndicator status="safe" size="sm" />
             </div>
 
-            <div className="bg-accent/30 p-3 sm:p-4 rounded-lg transition-all duration-200 hover:bg-accent/40">
+            <div className="rounded-xl border bg-white/65 dark:bg-white/5 backdrop-blur p-3 sm:p-4 transition-all duration-200 hover:shadow-elegant">
               <div className="flex items-center gap-3 mb-3">
                 <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 <span className="text-responsive-sm font-medium text-foreground">
-                  {t('yourGroup')} • {mockGroupMembers.length} {t('members')}
+                  {t('yourGroup')} • {members.length} {t('members')}
                 </span>
               </div>
 
               <div className="space-y-2 sm:space-y-3">
-                {mockGroupMembers.map((member, index) => (
-                  <div 
-                    key={member.name} 
-                    className="flex items-center justify-between p-2 rounded-md hover:bg-background/50 transition-colors duration-200"
-                    style={{ animationDelay: `${index * 100}ms` }}
-                  >
+                {members.length === 0 ? (
+                  <div className="flex items-center justify-between p-2 rounded-md bg-background/40 border border-border/60">
                     <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="h-2 w-2 bg-success rounded-full animate-pulse"></div>
-                      <span className="text-responsive-xs font-medium text-foreground">{member.name}</span>
+                      <div className="h-2 w-2 bg-muted-foreground/50 rounded-full"></div>
+                      <span className="text-responsive-xs text-muted-foreground">{t('noMembersYet') || 'No members yet.'}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{member.lastSeen}</span>
+                    <Button size="sm" variant="outline" onClick={() => navigate('/profile')}>
+                      {t('addMember') || 'Add Member'}
+                    </Button>
                   </div>
-                ))}
+                ) : (
+                  members.map((m, index) => (
+                    <div
+                      key={m.id}
+                      className="flex items-center justify-between p-2 rounded-md bg-white/50 dark:bg-white/5 border border-border/60 hover:bg-white/70 dark:hover:bg-white/10 transition-colors duration-200"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="h-2 w-2 bg-success rounded-full animate-pulse"></div>
+                        <span className="text-responsive-xs font-medium text-foreground">{m.name || 'Member'}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{formatLastSeen(m.lastUpdated)}</span>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
                 <Clock className="h-3 w-3 text-muted-foreground animate-pulse" />
-                <span className="text-xs text-muted-foreground">{t('lastUpdate')}</span>
+                <span className="text-xs text-muted-foreground">
+                  {members.length > 0 ? `Last update: ${formatLastSeen(Math.max(...members.map(m => m.lastUpdated || 0)))}` : t('lastUpdate')}
+                </span>
               </div>
             </div>
           </div>
@@ -112,30 +158,32 @@ const Dashboard: React.FC<DashboardProps> = ({ groupCode }) => {
 
         {/* Quick Actions */}
         <div className="space-y-3 sm:space-y-4">
-          <h2 className="text-responsive-lg font-semibold text-foreground font-heading">{t('quickActions')}</h2>
+          <h2 className="text-responsive-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 font-heading">{t('quickActions')}</h2>
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <Button
               variant="destructive"
               size="lg"
-              className="h-16 sm:h-20 flex-col gap-1 sm:gap-2 bg-danger hover:bg-danger/90 text-white shadow-medium touch-button focus-ring active:scale-95 transition-all duration-200"
+              className="relative overflow-hidden h-16 sm:h-20 flex-col gap-1 sm:gap-2 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-[0_12px_24px_rgba(220,38,38,0.25)] hover:shadow-[0_16px_36px_rgba(220,38,38,0.35)] active:scale-95 transition-all duration-200 before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.15),transparent_40%)]"
               onClick={() => navigate('/sos')}
               aria-label="Emergency SOS Alert"
             >
-              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6" />
-              <span className="text-xs sm:text-sm font-medium">SOS</span>
+              <AlertTriangle className="relative h-5 w-5 sm:h-6 sm:w-6 drop-shadow" />
+              <span className="relative text-xs sm:text-sm font-semibold tracking-wide">SOS</span>
             </Button>
 
+            {/* Replaced Find Group with Add Members */}
             <Button
               variant="secondary"
               size="lg"
-              className="h-16 sm:h-20 flex-col gap-1 sm:gap-2 bg-secondary hover:bg-secondary/90 shadow-medium touch-button focus-ring active:scale-95 transition-all duration-200"
-              onClick={() => navigate('/map')}
-              aria-label="View Group on Map"
+              className="relative overflow-hidden h-16 sm:h-20 flex-col gap-1 sm:gap-2 rounded-2xl bg-gradient-to-br from-sky-400 to-cyan-500 text-white shadow-[0_12px_24px_rgba(14,165,233,0.25)] hover:shadow-[0_16px_36px_rgba(14,165,233,0.35)] active:scale-95 transition-all duration-200 before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_70%_0%,rgba(255,255,255,0.18),transparent_45%)]"
+              onClick={() => navigate('/members/add')}
+              aria-label="Add Group Members"
             >
-              <MapPin className="h-5 w-5 sm:h-6 sm:w-6" />
-              <span className="text-xs sm:text-sm font-medium">{t('findGroup')}</span>
+              <Users className="relative h-5 w-5 sm:h-6 sm:w-6 drop-shadow" />
+              <span className="relative text-xs sm:text-sm font-semibold tracking-wide">Add Members</span>
             </Button>
 
+            {/*
             <Button
               variant="outline"
               size="lg"
@@ -146,32 +194,44 @@ const Dashboard: React.FC<DashboardProps> = ({ groupCode }) => {
               <Share className="h-5 w-5 sm:h-6 sm:w-6" />
               <span className="text-xs sm:text-sm font-medium">{t('shareLocation')}</span>
             </Button>
+            */}
 
             <Button
               variant="outline"
               size="lg"
-              className="h-16 sm:h-20 flex-col gap-1 sm:gap-2 bg-card hover:bg-background/80 shadow-soft touch-button focus-ring active:scale-95 transition-all duration-200"
+              className="relative overflow-hidden h-16 sm:h-20 flex-col gap-1 sm:gap-2 rounded-2xl bg-white/70 dark:bg-card/80 backdrop-blur border border-white/70 dark:border-border/60 hover:bg-white/80 shadow-[0_8px_24px_rgba(2,6,23,0.08)] hover:shadow-[0_12px_32px_rgba(2,6,23,0.12)] active:scale-95 transition-all duration-200 ring-1 ring-transparent hover:ring-violet-300/50"
+              onClick={() => setScannerOpen(true)}
+              aria-label="Scan QR"
+            >
+              <QrCode className="h-5 w-5 sm:h-6 sm:w-6 text-violet-600" />
+              <span className="text-xs sm:text-sm font-medium text-foreground">{t('scanQR') || 'Scan QR'}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="lg"
+              className="relative overflow-hidden h-16 sm:h-20 flex-col gap-1 sm:gap-2 rounded-2xl bg-white/70 dark:bg-card/80 backdrop-blur border border-white/70 dark:border-border/60 hover:bg-white/80 shadow-[0_8px_24px_rgba(2,6,23,0.08)] hover:shadow-[0_12px_32px_rgba(2,6,23,0.12)] active:scale-95 transition-all duration-200 ring-1 ring-transparent hover:ring-emerald-300/50"
               onClick={() => navigate('/profile')}
               aria-label="Show My QR Code"
             >
-              <QrCode className="h-5 w-5 sm:h-6 sm:w-6" />
-              <span className="text-xs sm:text-sm font-medium">{t('myQR') || 'My QR'}</span>
+              <QrCode className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600" />
+              <span className="text-xs sm:text-sm font-medium text-foreground">{t('myQR') || 'My QR'}</span>
             </Button>
           </div>
         </div>
 
         {/* Service Cards */}
         <div className="space-y-3 sm:space-y-4">
-          <h2 className="text-responsive-lg font-semibold text-foreground font-heading">Services</h2>
+          <h2 className="text-responsive-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 font-heading">Services</h2>
           <div className="grid grid-cols-1 gap-3 sm:gap-4">
-            <Card className="border-card-border shadow-soft bg-card/95 backdrop-blur-sm card-interactive rounded-lg sm:rounded-xl overflow-hidden">
+            <Card className="border-card-border shadow-soft bg-card/95 backdrop-blur-sm rounded-lg sm:rounded-xl overflow-hidden hover-lift">
               <button 
                 className="w-full text-left p-4 sm:p-5 focus-ring transition-all duration-200" 
                 onClick={() => navigate('/sos')}
                 aria-label="Access Emergency Help Services"
               >
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="bg-primary/10 p-3 rounded-lg transition-transform duration-200 group-hover:scale-110">
+                  <div className="bg-gradient-to-br from-orange-200 to-amber-300 p-3 rounded-lg transition-transform duration-200 group-hover:scale-110">
                     <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -183,15 +243,15 @@ const Dashboard: React.FC<DashboardProps> = ({ groupCode }) => {
               </button>
             </Card>
 
-            <Card className="border-card-border shadow-soft bg-card/95 backdrop-blur-sm card-interactive rounded-lg sm:rounded-xl overflow-hidden">
+            <Card className="border-card-border shadow-soft bg-card/95 backdrop-blur-sm rounded-lg sm:rounded-xl overflow-hidden hover-lift">
               <button 
                 className="w-full text-left p-4 sm:p-5 focus-ring transition-all duration-200" 
                 onClick={() => navigate('/helpdesk')}
                 aria-label="Access Helpdesk Services"
               >
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="bg-sky-blue/10 p-3 rounded-lg transition-transform duration-200 group-hover:scale-110">
-                    <Users className="h-5 w-5 sm:h-6 sm:w-6 text-sky-blue" />
+                  <div className="bg-gradient-to-br from-sky-200 to-cyan-300 p-3 rounded-lg transition-transform duration-200 group-hover:scale-110">
+                    <Users className="h-5 w-5 sm:h-6 sm:w-6 text-sky-700" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-responsive-sm font-semibold text-foreground mb-1">{t('helpdesk')}</h3>
@@ -218,9 +278,17 @@ const Dashboard: React.FC<DashboardProps> = ({ groupCode }) => {
             </div>
           </div>
         </Card>
+      {/* QR Scanner Modal */}
+      <QRScanner
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanResult={handleScanResult}
+        mode="general"
+      />
       </div>
     </div>
   );
 };
 
 export default memo(Dashboard);
+

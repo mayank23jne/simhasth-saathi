@@ -16,6 +16,7 @@ import ProfileScreen from "./pages/ProfileScreen";
 import SettingsScreen from "./pages/SettingsScreen";
 import NotificationsScreen from "./pages/NotificationsScreen";
 import NotFound from "./pages/NotFound";
+import AddMembers from "./pages/AddMembers";
 import { AdminLogin } from "./pages/admin/AdminLogin";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { IonicLayout } from "./components/layout/ionic-layout";
@@ -24,10 +25,10 @@ import { GroupProvider } from './context/GroupContext';
 
 const queryClient = new QueryClient();
 
-/* ✅ Route Guard Component */
+/* ✅ Route Guard Component (token-based) */
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const isAuthenticated = localStorage.getItem("groupEnabled") === "true";
-  return isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+  return token ? <>{children}</> : <Navigate to="/" replace />;
 };
 
 /* ✅ Admin Route Guard Component */
@@ -62,6 +63,7 @@ const App = () => (
                 <Route path="/profile" element={<ProtectedRoute><ProfileScreen /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsScreen /></ProtectedRoute>} />
                 <Route path="/notifications" element={<ProtectedRoute><NotificationsScreen /></ProtectedRoute>} />
+                <Route path="/members/add" element={<ProtectedRoute><AddMembers /></ProtectedRoute>} />
               </Route>
 
               {/* 🔹 Admin Routes without Ionic Layout */}

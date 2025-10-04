@@ -627,3 +627,7 @@ Enhanced with beautiful gradients, animations, and modern aesthetics
 #lovable-badge{
     display: none !important;
 }
+
+.leaflet-control-attribution.leaflet-control {
+    display: none !important;
+}

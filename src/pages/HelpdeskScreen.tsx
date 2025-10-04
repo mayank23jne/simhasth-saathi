@@ -222,8 +222,8 @@ const HelpdeskScreen = () => {
 
   const buildPoliceAlertPayload = () => {
     const selfMember = members.find(m => m.isSelf);
-    const name = selfMember?.name || 'You';
-    const phone = selfMember?.phone || '';
+    const name = selfMember?.name || (useAppStore.getState().userName || 'You');
+    const phone = selfMember?.phone || (useAppStore.getState().userPhone || '');
     const loc = getSelfLastLocation();
     const when = new Date();
     return {

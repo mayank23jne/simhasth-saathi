@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
-import { Users, AlertCircle, Navigation, Locate, Info, Plus, Minus, MapPin } from 'lucide-react';
+import { Users, AlertCircle, Navigation, Locate, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ResponsiveButton } from '@/components/ui/responsive-button';
-import { ResponsiveCard } from '@/components/ui/responsive-card';
-import { ResponsiveContainer } from '@/components/ui/responsive-container';
 import { StatusIndicator } from '@/components/ui/status-indicator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MapContainer, TileLayer } from 'react-leaflet';
@@ -14,18 +11,25 @@ import 'leaflet-routing-machine';
 import { useTranslation } from '@/context/TranslationContext';
 import { useGroup } from '@/context/GroupContext';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
+import type { GroupMember, MemberPathPoint } from '@/store/appStore';
 
-// Group members are provided by GroupContext
-
-// Smooth animation helpers
+/** Lightweight coordinate type used for Leaflet interop. */
 type LatLng = { lat: number; lng: number; ts?: number };
+/**
+ * Linear interpolation between two numbers.
+ */
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
+/**
+ * Ease-in-out curve for smooth marker motion.
+ */
 function easeInOutQuad(t: number) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
+/**
+ * Smoothly moves a marker from current to target position over a duration.
+ */
 function smoothMoveMarker(marker: L.Marker, to: LatLng, durationMs: number, animStateMap: Map<L.Marker, { raf?: number }>) {
   try {
     const fromLatLng = marker.getLatLng();
@@ -56,7 +60,9 @@ function smoothMoveMarker(marker: L.Marker, to: LatLng, durationMs: number, anim
   }
 }
 
-// Smooth animation for a marker along a given path
+/**
+ * Animates a marker along a polyline path at walking speed using RAF.
+ */
 function smoothMoveMarkerAlongPath(
   marker: L.Marker,
   path: LatLng[],
@@ -144,7 +150,7 @@ const MapScreen: React.FC = () => {
   const { members, setUserLocation, userLocation, mapMode, helpdeskTarget, setMapMode } = useGroup();
   const [showGeofenceAlert, setShowGeofenceAlert] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const [selectedMember, setSelectedMember] = useState<GroupMember | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userMarkerElRef = useRef<HTMLElement | null>(null);
@@ -161,7 +167,7 @@ const MapScreen: React.FC = () => {
   const userAnimRefs = useRef<Map<L.Marker, { raf?: number }>>(new Map());
   const routePopupRef = useRef<L.Popup | null>(null);
   const routeUpdateDebounceRef = useRef<number | null>(null);
-  const selectedMemberRef = useRef<any | null>(null);
+  const selectedMemberRef = useRef<GroupMember | null>(null);
   const lastFitForMemberIdRef = useRef<string | null>(null);
   const mapCenterHintHandledRef = useRef<string | null>(null);
   const infoPanelRef = useRef<HTMLDivElement | null>(null);
@@ -202,8 +208,9 @@ const MapScreen: React.FC = () => {
   const geofenceUpdateDebounceRef = useRef<number | null>(null);
   const geofencePositionsHashRef = useRef<string | null>(null);
 
-  // Help centers were used for a button that's currently commented out. Keeping logic minimal below.
-
+  /**
+   * Haversine distance in meters between two coordinates.
+   */
   const haversine = useCallback((a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
     const R = 6371000;
     const dLat = (b.lat - a.lat) * Math.PI / 180;
@@ -252,8 +259,6 @@ const MapScreen: React.FC = () => {
       memberRoadSnapInFlightRef.current.delete(memberId);
     }
   }, [haversine]);
-
-  // Removed findNearestHelpCenter: not used because "Nearest Help Center" button is commented out.
 
   // Directional triangle icons (rotated by heading)
   const buildDirectionalIcon = useCallback((color: string, headingDeg?: number, highlight?: boolean) => {
@@ -318,6 +323,22 @@ const MapScreen: React.FC = () => {
   // Track user location with tight throttling (0.8–1.2s) and feed into GroupContext
   useEffect(() => {
     if (!navigator.geolocation) return;
+    // One-time immediate fetch to avoid using any stale persisted location
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        try {
+          const userLat = position.coords.latitude;
+          const userLng = position.coords.longitude;
+          prevUserPosRef.current = { lat: userLat, lng: userLng };
+          setUserLocation(userLat, userLng);
+        } catch {}
+      },
+      () => {
+        // keep silent here; watchPosition handler below will surface errors
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const now = Date.now();
@@ -348,15 +369,16 @@ const MapScreen: React.FC = () => {
         prevUserPosRef.current = { lat: userLat, lng: userLng };
         setUserLocation(userLat, userLng);
       },
-      (error) => console.error('Geolocation error:', error),
+      () => toast.error('Geolocation error'),
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
   }, [setUserLocation]);
 const initializedRef = useRef(false);
 const DEFAULT_ZOOM = 16; // default zoom at initialization
-const DISABLE_MEMBER_MOVEMENT = true; // Enable smooth group member movement
-const DISABLE_USER_MOVEMENT = true; // Disable self/user marker movement
+// Optimization flags: when true, movement is disabled; keep semantics explicit
+const DISABLE_MEMBER_MOVEMENT = true; // Disable group member movement (keep markers static)
+const DISABLE_USER_MOVEMENT = false; // Disable user marker movement (false = movement enabled)
 const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
   // Mount user marker and (optionally) path once when both map and user location exist
@@ -418,21 +440,22 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     if (!DISABLE_USER_MOVEMENT && !bounds.pad(-0.3).contains(latlng)) {
       map.panTo(latlng, { animate: true });
     }
-  }, [userLocation, buildDirectionalIcon, animateHeadingRotation]);
+  }, [userLocation, animateHeadingRotation]); // trim unused dep to avoid needless reruns
 
-  const groupStatus = useMemo(() => 'safe' as const, []);
+  // Constant value; no need to memoize
+  const groupStatus: 'safe' = 'safe';
 
   // Derived stats for info panel
   const { totalCount, alertCount, safeCount, lastUpdatedTs } = useMemo(() => {
     const total = members.length;
-    const alerts = members.reduce((acc: number, m: any) => {
-      const isAlert = m?.status === 'alert' || m?.isAlert === true || m?.alert === true;
+    const alerts = members.reduce((acc: number, m: GroupMember) => {
+      const isAlert = (m as any)?.status === 'alert' || (m as any)?.isAlert === true || (m as any)?.alert === true;
       return acc + (isAlert ? 1 : 0);
     }, 0);
     const safe = Math.max(0, total - alerts);
     let latest = 0;
-    for (const m of members as any[]) {
-      if (Array.isArray(m?.path) && m.path.length > 0) {
+    for (const m of members as GroupMember[]) {
+      if (Array.isArray(m.path) && m.path.length > 0) {
         const ts = m.path[m.path.length - 1]?.ts ?? 0;
         if (typeof ts === 'number' && ts > latest) latest = ts;
       } else if (typeof (m as any)?.updatedAt === 'number') {
@@ -469,7 +492,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
     const positions: [number, number][] = [];
     const candidates: { id: string; lat: number; lng: number }[] = [];
-    members.forEach((m: any) => {
+    members.forEach((m: GroupMember) => {
       if (m?.position?.lat != null && m?.position?.lng != null) {
         positions.push([m.position.lat, m.position.lng]);
         if (!m.isSelf) candidates.push({ id: m.id, lat: m.position.lat, lng: m.position.lng });
@@ -503,7 +526,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     // Establish or update group geofence based on current group spread
     try {
       const filteredPositions: [number, number][] = [];
-      members.forEach((m: any) => {
+      members.forEach((m: GroupMember) => {
         if (m?.position?.lat != null && m?.position?.lng != null) {
           if (forcedOutsideMemberIdRef.current && m.id === forcedOutsideMemberIdRef.current) return;
           filteredPositions.push([m.position.lat, m.position.lng]);
@@ -546,7 +569,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     }
   }, [members, userLocation]);
 
-  // Removed handleMarkerClick: markers bind click handlers inline; this helper was unused.
+  
 
   // Debounced helper to update routing control waypoints or fallback line
   const updateLiveRoute = useCallback((map: L.Map, userPos: L.LatLng, memberPos: L.LatLng, selectedMemberId: string) => {
@@ -677,7 +700,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     const map = mapRef.current;
     const cache = memberMarkersRef.current;
     const presentIds = new Set<string>();
-    members.filter(m => !m.isSelf).forEach((m) => {
+    members.filter(m => !m.isSelf).forEach((m: GroupMember) => {
       presentIds.add(m.id);
       // choose or keep a forced-outside member id consistently
       if (!forcedOutsideMemberIdRef.current) forcedOutsideMemberIdRef.current = m.id;
@@ -758,7 +781,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           } else {
             const current = existing.getLatLng();
             const dist = haversine({ lat: current.lat, lng: current.lng }, { lat: m.position.lat, lng: m.position.lng });
-            const target = dist < 6 ? { lat: current.lat, lng: current.lng } : m.position;
+            const target = dist < 6 ? { lat: current.lat, lng: current.lng } : (m.position as {lat: number; lng: number});
             smoothMoveMarker(existing, target as any, 900, memberAnimRefs.current);
           }
           const prevKey = memberIconKeyRef.current.get(m.id);
@@ -939,7 +962,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
     const allPositions: { id?: string; lat: number; lng: number }[] = [];
     const candidates: { id: string; lat: number; lng: number }[] = [];
-    for (const m of members as any[]) {
+    for (const m of members as GroupMember[]) {
       if (m?.position?.lat != null && m?.position?.lng != null) {
         allPositions.push({ id: m.id, lat: m.position.lat, lng: m.position.lng });
         if (!m.isSelf) candidates.push({ id: m.id, lat: m.position.lat, lng: m.position.lng });
@@ -1044,7 +1067,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     const newlyOutside: Set<string> = new Set();
     let breachName: string | null = null;
     let breachId: string | null = null;
-    for (const m of members as any[]) {
+    for (const m of members as GroupMember[]) {
       if (!m?.position) continue;
       const dist = haversine(
         { lat: m.position.lat, lng: m.position.lng },
@@ -1384,7 +1407,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     }
   }, [userLocation, mapMode, helpdeskTarget]);
 
-  // Removed handleNearestHelpdesk: corresponding UI is commented; avoiding dead code.
+  
 
   // Focus/zoom to latest breaching member and highlight
   const handleViewGeofenceBreach = useCallback(() => {
@@ -1395,7 +1418,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
       // ensure group mode to show members
       setMapMode('groups');
 
-      const latest = members.find((m: any) => m.id === geofenceBreachMemberId);
+      const latest = members.find((m: GroupMember) => m.id === geofenceBreachMemberId);
       if (!latest || !latest.position) return;
 
       const latlng = L.latLng(latest.position.lat, latest.position.lng);
@@ -1424,7 +1447,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
   return (
     <>
-    <div className="flex flex-col h-[80vh] bg-background">
+    <div className="flex flex-col h-[87vh] bg-background">
       {/* Status Panel */}
       <div className="px-4 py-3 bg-card border-b border-card-border">
         <div className="flex items-center justify-between">
@@ -1466,7 +1489,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           <div className="absolute top-4 right-4 z-[999] bg-card border border-card-border rounded-md shadow-medium max-w-[260px]">
             <div className="p-3 border-b border-card-border font-medium">{selectedMember.name} - Recent locations</div>
             <div className="p-3 max-h-48 overflow-auto space-y-2 text-sm">
-              {[...selectedMember.path].slice(-10).reverse().map((p: any, idx: number) => (
+              {[...selectedMember.path].slice(-10).reverse().map((p: MemberPathPoint, idx: number) => (
                 <div key={idx} className="flex items-center justify-between">
                   <span>{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</span>
                   <span className="text-xs text-muted-foreground">{new Date(p.ts).toLocaleTimeString()}</span>
@@ -1497,21 +1520,16 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           markerZoomAnimation={true}
           touchZoom={true}
           tapTolerance={15}
-          // whenReady is not used; ref below captures the instance
           ref={(instance) => {
             if (instance) {
-              // @ts-ignore
-              mapRef.current = instance;
+              mapRef.current = (instance as unknown as L.Map);
             }
           }}
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         </MapContainer>
       </div>
-
-      {/* Bottom Actions */}
-    </div>
-   <div className="p-4 bg-card border-t border-card-border">
+      <div className="p-4 bg-card border-t border-card-border">
         <div className="flex gap-3">
           <Button variant="outline" className="flex-1 h-12 text-primary border-primary hover:bg-primary hover:text-primary-foreground" onClick={() => { setMapMode('groups'); handleFocusGroup(); }}>
             <Navigation className="h-5 w-5 mr-2" />
@@ -1591,6 +1609,9 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           
         </div>
       </div>
+      {/* Bottom Actions */}
+    </div>
+   
   </>
   );
 };

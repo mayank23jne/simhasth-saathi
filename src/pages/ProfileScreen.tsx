@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, memo } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { User, Users, Phone, Settings, Share, Edit, Copy, QrCode, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/appStore';
 import { QRScanner } from '@/components/QRScanner';
+import { tryParseQR } from '@/lib/qr';
 import MyQRModal from '@/components/MyQRModal';
 import { ResponsiveButton } from '@/components/ui/responsive-button';
 import { ResponsiveContainer } from '@/components/ui/responsive-container';
@@ -25,21 +26,32 @@ const ProfileScreen = () => {
   const [scannedResult, setScannedResult] = useState<any>(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const members = useAppStore(s => s.members);
+  const groupCode = useAppStore(s => s.groupCode);
+  const storeUserName = useAppStore(s => s.userName);
+  const storeUserPhone = useAppStore(s => s.userPhone);
+  // Dynamic online members count (based on recent lastUpdated)
+  const ONLINE_WINDOW_MS = 2 * 60 * 1000; // 2 minutes window
+  const [presenceTick, setPresenceTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setPresenceTick((t) => t + 1), 30000); // refresh every 30s
+    return () => clearInterval(id);
+  }, []);
+  const onlineCount = useMemo(() => {
+    const now = Date.now();
+    return members.filter(m => typeof m.lastUpdated === 'number' && (now - (m.lastUpdated as number)) <= ONLINE_WINDOW_MS).length;
+  }, [members, presenceTick]);
   const addMember = useAppStore(s => s.addMember);
   const removeMemberFromStore = useAppStore(s => s.removeMember);
   const clearMembers = useAppStore(s => s.clearMembers);
   const userId = useAppStore(s => s.userId);
 
   const userProfile = useMemo(() => ({
-    name: 'राम प्रकाश शर्मा',
+    name: storeUserName || 'You',
     age: 68,
-    groupId: 'GRP-2024-001',
-    phone: '+91 98765 43210',
-    emergencyContacts: [
-      { name: 'अजय शर्मा', phone: '+91 98765 43211', relation: 'पुत्र' },
-      { name: 'प्रिया शर्मा', phone: '+91 98765 43212', relation: 'पुत्रवधू' }
-    ]
-  }), []);
+    groupId: groupCode || (typeof window !== 'undefined' ? (localStorage.getItem('groupId') || '—') : '—'),
+    phone: storeUserPhone || '',
+    emergencyContacts: []
+  }), [storeUserName, storeUserPhone, groupCode]);
 
   const mockMembers = useMemo(() => ([
     { id: 'MEM001', name: 'Ravi Sharma', phone: '+91 90000 00001', groupCode: 'GRP-2024-001' },
@@ -57,23 +69,73 @@ const ProfileScreen = () => {
   }, [t, userProfile.name]);
 
   const copyGroupId = useCallback(() => {
+    if (!userProfile.groupId || userProfile.groupId === '—') return;
     navigator.clipboard.writeText(userProfile.groupId);
     toast.success(t('copied') || 'Copied');
   }, [userProfile.groupId, t]);
 
-  const handleScanResult = useCallback((result: any) => {
-    setScannedResult(result);
-    if (result.type === 'member') {
-      const exists = members.some(m => m.id === result.id || (m.phone && result.phone && m.phone === result.phone));
+  // Relative time for group creation (stored when joining/creating group)
+  const getGroupCreatedAt = useCallback(() => {
+    try {
+      const raw = localStorage.getItem('groupJoinedAt');
+      return raw ? Number(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const [relativeTick, setRelativeTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setRelativeTick((x) => x + 1), 60000); // update every minute
+    return () => clearInterval(id);
+  }, []);
+
+  const groupCreatedRelative = useMemo(() => {
+    const ts = getGroupCreatedAt();
+    if (!ts) return t('unknown') || '—';
+    const diffMs = Date.now() - ts;
+    const minutes = Math.floor(diffMs / 60000);
+    if (minutes < 60) return minutes <= 1 ? (t('justNow') || 'Just now') : `${minutes} ${t('minutesAgo') || 'minutes ago'}`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours === 1 ? (t('anHourAgo') || 'an hour ago') : `${hours} ${t('hoursAgo') || 'hours ago'}`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return days === 1 ? (t('aDayAgo') || 'a day ago') : `${days} ${t('daysAgo') || 'days ago'}`;
+    const weeks = Math.floor(days / 7);
+    return weeks === 1 ? (t('aWeekAgo') || 'a week ago') : `${weeks} ${t('weeksAgo') || 'weeks ago'}`;
+  }, [getGroupCreatedAt, relativeTick, t]);
+
+  const handleScanResult = useCallback((raw: any) => {
+    setScannedResult(raw);
+    // Support both mock shape and standardized QR payloads
+    const parsed = typeof raw === 'string' ? tryParseQR(raw) : null;
+    const candidate = (() => {
+      if (parsed && parsed.kind === 'member_card') {
+        return {
+          id: parsed.id,
+          name: parsed.name,
+          phone: parsed.phone,
+          groupCode: parsed.groupCode,
+          type: 'member',
+        } as any;
+      }
+      return raw;
+    })();
+    if (candidate?.type === 'member') {
+      const exists = members.some(m => m.id === candidate.id || (m.phone && candidate.phone && m.phone === candidate.phone));
       if (exists) {
         toast('Member already added');
         return;
       }
-      addMember({ id: result.id, name: result.name, phone: result.phone, groupCode: result.groupCode });
+      // Enforce same group when groupCode exists on QR
+      const qrGroup = candidate.groupCode;
+      if (qrGroup && qrGroup !== (userProfile.groupId)) {
+        toast.error('Member belongs to a different group');
+        return;
+      }
+      addMember({ id: candidate.id, name: candidate.name, phone: candidate.phone, groupCode: qrGroup || userProfile.groupId });
       toast.success('Member added');
     }
-    // For volunteer mode, future: show full info modal
-  }, [members, addMember]);
+  }, [members, addMember, userProfile.groupId]);
 
   const removeMember = (id: string) => {
     removeMemberFromStore(id);
@@ -87,29 +149,33 @@ const ProfileScreen = () => {
   return (
     <>
     <div className="min-h-screen bg-gradient-subtle">
-      <div className="px-responsive py-responsive space-y-responsive animate-fade-in">
+      <div className="px-responsive py-responsive space-y-responsive animate-fade-in pb-nav">
         {/* User Info Card - Premium layout */}
         <Card className="shadow-soft hover:shadow-medium transition-all duration-300 card-interactive overflow-hidden">
           <CardContent className="p-0">
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-primary/15 via-background to-accent/15" />
               <div className="relative p-responsive">
-                <div className="flex items-center gap-responsive">
-                  <Avatar className="h-14 w-14 sm:h-20 sm:w-20 ring-2 ring-primary/30 shadow-sm">
-                    <AvatarImage src="/placeholder-avatar.jpg" />
-                    <AvatarFallback className="text-responsive-lg bg-primary/10 text-primary font-semibold">
-                      {userProfile.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-responsive-lg font-bold text-foreground truncate">{userProfile.name}</h2>
-                    <p className="text-responsive-sm text-muted-foreground">{t('age')}: {userProfile.age}</p>
-                    <div className="flex items-center gap-sm mt-sm">
-                      <StatusIndicator status="safe" size="sm" />
-                      <span className="text-xs text-muted-foreground">{t('active') || 'Active'}</span>
+                <div className="flex items-center justify-between gap-responsive">
+                    <Avatar className="h-14 w-14 sm:h-20 sm:w-20 ring-2 ring-primary/30 shadow-sm shrink-0">
+                      <AvatarImage src="/placeholder-avatar.jpg" />
+                      <AvatarFallback className="text-responsive-lg bg-primary/10 text-primary font-semibold">
+                        {userProfile.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                  <div className="flex  gap-responsive flex-1 min-w-0">
+                    <div className="min-w-0 pl-2">
+                      <h2 className="text-responsive-lg font-bold text-foreground truncate">{userProfile.name}</h2>
+                      <div className="flex items-center gap-3">
+                        <p className="text-responsive-sm text-muted-foreground">{t('age')}: {userProfile.age}</p>
+                        <div className="flex items-center gap-sm mt-sm">
+                          <StatusIndicator status="safe" size="sm" />
+                          <span className="text-xs text-muted-foreground">{t('active') || 'Active'}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-center">
+                  <div className="shrink-0 flex items-center">
                     <Button variant="outline" size="sm" className="h-touch w-touch p-0 hover:scale-110 transition-transform duration-200 focus-ring" aria-label="Edit profile">
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -131,8 +197,8 @@ const ProfileScreen = () => {
                 </div>
 
                 <ResponsiveContainer className="mt-md">
-                  <div className="grid grid-cols-2 gap-2">
-                    <ResponsiveButton 
+                  <div className="grid  gap-2">
+                    {/* <ResponsiveButton 
                       onClick={() => { setScannerMode('member'); setScannerOpen(true); }} 
                       className="w-full"
                       touchOptimized
@@ -140,7 +206,7 @@ const ProfileScreen = () => {
                       icon={<QrCode className="h-4 w-4" />}
                     >
                       {t('addMember') || 'Add Member'}
-                    </ResponsiveButton>
+                    </ResponsiveButton> */}
                     <ResponsiveButton 
                       variant="outline"
                       className="w-full"
@@ -239,11 +305,11 @@ const ProfileScreen = () => {
               </div>
               <div className="p-3 rounded-lg bg-muted/50 text-center">
                 <div className="text-xs text-muted-foreground">{t('onlineMembers')}</div>
-                <div className="text-lg font-semibold text-success">3</div>
+                <div className="text-lg font-semibold text-success">{onlineCount}</div>
               </div>
               <div className="p-3 rounded-lg bg-muted/50 text-center">
                 <div className="text-xs text-muted-foreground">{t('groupCreated')}</div>
-                <div className="text-xs">2 दिन पहले</div>
+                <div className="text-xs">{groupCreatedRelative}</div>
               </div>
             </div>
 
@@ -290,9 +356,11 @@ const ProfileScreen = () => {
                             <div className="text-xs text-muted-foreground truncate">{t('group') || 'Group'}: {m.groupCode}</div>
                           </div>
                         </div>
-                        <Button variant="destructive" size="sm" onClick={() => removeMember(m.id)} aria-label="Remove member">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {!m.isSelf && (
+                          <Button variant="destructive" size="sm" onClick={() => removeMember(m.id)} aria-label="Remove member">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -320,8 +388,10 @@ const ProfileScreen = () => {
           variant="destructive"
           className="w-full mt-6"
           onClick={() => {
-            localStorage.removeItem('groupEnabled');
-            localStorage.removeItem('groupCode');
+            try {
+              localStorage.clear();
+            } catch {}
+            // Optional: also clear some transient store state via storage-clearing
             navigate('/');
           }}
         >

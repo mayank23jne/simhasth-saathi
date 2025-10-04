@@ -40,3 +40,6 @@
 .read-the-docs {
   color: #888;
 }
+.leaflet-control-attribution.leaflet-control {
+    display: none !important;
+}

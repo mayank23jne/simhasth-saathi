@@ -7,9 +7,13 @@ import { cn } from '@/lib/utils';
 import { useGroup } from '@/context/GroupContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'react-qr-code';
+import { encodeQR, tryParseQR } from '@/lib/qr';
 import { toast } from 'sonner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import simhasthaLogo from '@/assets/simhastha_logo.png';
+import BarcodeScanner from 'react-qr-barcode-scanner';
+import { useAppStore } from '@/store/appStore';
+import { authService } from '@/services/authService';
 
 interface GroupSetupProps {
   onGroupCreated: (groupCode: string) => void;
@@ -25,6 +29,20 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
   const { createGroup, joinGroup } = useGroup();
   const [shareOpen, setShareOpen] = useState(false);
   const [isCelebrating, setIsCelebrating] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [stopStream, setStopStream] = useState(false);
+  const [hasScanned, setHasScanned] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [scannerReady, setScannerReady] = useState(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [torch, setTorch] = useState(false);
+  const [autoJoinTriggered, setAutoJoinTriggered] = useState(false);
+  const [qrRedirectURL, setQrRedirectURL] = useState('') 
+  const userName = useAppStore(s => s.userName) || '';
+  const userPhone = useAppStore(s => s.userPhone) || '';
+  const userAge = Number(typeof window !== 'undefined' ? localStorage.getItem('userAge') || '0' : '0') || 0;
+  const setUserRole = useAppStore(s => s.setUserRole);
+  const setUserId = useAppStore(s => s.setUserId);
 
   const texts = {
   en: {
@@ -52,6 +70,9 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
     copyLink: 'Copy Link',
     copiedLink: 'Link copied!',
     downloadPoster: 'Download Invite Card',
+    scanQr: 'Scan QR',
+    scanHelp: 'Align the QR code within the frame to join automatically',
+    cameraError: 'Camera error. Please allow camera permission or enter code manually',
   },
   hi: {
     title: 'अपना समूह बनाएं',
@@ -78,6 +99,9 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
     copyLink: 'लिंक कॉपी करें',
     copiedLink: 'लिंक कॉपी हो गया!',
     downloadPoster: 'इनवाइट कार्ड डाउनलोड करें',
+    scanQr: 'क्यूआर स्कैन करें',
+    scanHelp: 'QR को फ्रेम में रखें, कोड मिलते ही आप जुड़ जाएंगे',
+    cameraError: 'कैमरा त्रुटि। कृपया अनुमति दें या कोड मैन्युअली डालें',
   },
   mr: {
     title: 'आपला गट तयार करा',
@@ -104,6 +128,9 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
     copyLink: 'लिंक कॉपी करा',
     copiedLink: 'लिंक कॉपी झाले!',
     downloadPoster: 'आमंत्रण कार्ड डाउनलोड करा',
+    scanQr: 'QR स्कॅन करा',
+    scanHelp: 'QR फ्रेममध्ये ठेवा, कोड मिळताच आपण सामील व्हाल',
+    cameraError: 'कॅमेरा त्रुटी. कृपया परवानगी द्या किंवा कोड टाका',
   },
   sa: {
     title: 'समूह बनाएं',
@@ -130,6 +157,9 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
     copyLink: 'लिंक कॉपी करें',
     copiedLink: 'लिंक कॉपी हो गया!',
     downloadPoster: 'निमंत्रण कार्ड डाउनलोड करें',
+    scanQr: 'QR स्कैन करें',
+    scanHelp: 'QR को फ्रेममध्ये स्थाप्यत—अनन्तरः स्वयमेव योज्यते',
+    cameraError: 'क्यामेरा दोषः। अनुमतिं दत्त्वा वा कोडं प्रविश्यताम्',
   },
 };
 
@@ -139,23 +169,119 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
   const generateGroupCode = () => {
     const code = Math.random().toString(36).substr(2, 6).toUpperCase();
     setGeneratedCode(code);
+    console.info(`${window.location.origin}?join=${generatedCode}`,"${window.location.origin}?join=${generatedCode}")
+    setQrRedirectURL(`${window.location.origin}?join=${code}`)
   };
 
   const handleCreateGroup = async () => {
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    generateGroupCode();
-    setIsLoading(false);
+    try {
+      const adminId = (useAppStore.getState().userId) || localStorage.getItem('userId') || '';
+      const resp: any = await authService.createGroup({ adminId });
+      console.log('create-group response:', resp);
+      // Try to read code/id from various shapes (backend returns data.groupId per spec)
+      const raw = (resp?.data?.groupId || resp?.groupId || resp?.groupCode || resp?.code || resp?.data?.groupCode || resp?.data?.code || '').toString();
+      const code = raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+      if (code && code.length === 6) {
+        setGeneratedCode(code);
+        setQrRedirectURL(`${window.location.origin}?join=${code}`);
+        // Persist in store/localStorage so the ID shows everywhere
+        try { localStorage.setItem('groupCode', code); localStorage.setItem('groupId', code); } catch {}
+      } else {
+        // fallback to local generation if API doesn't return a code
+        generateGroupCode();
+      }
+    } catch (e: any) {
+      console.error('create-group failed:', e);
+      toast.error(e?.message || 'Failed to create group');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleJoinGroup = async () => {
     if (groupCode.length < 6) return;
+    if (!userName || !userPhone) {
+      toast.error('Please complete login first');
+      return;
+    }
     setIsLoading(true);
-    // Simulate API call
+    try {
+      // Register member and trigger OTP
+      try {
+        await authService.registerMember({ fullName: userName, mobileNumber: userPhone, age: userAge > 0 ? userAge : 18, groupId: groupCode });
+      } catch {}
+      const loginRes = await authService.loginMember({ mobileNumber: userPhone });
+      const otp = window.prompt('Enter OTP sent to your phone');
+      if (!otp || otp.trim().length < 4) {
+        toast.error('OTP required');
+        return;
+      }
+      const verify = await authService.verifyOtp({ userId: loginRes.userId, otp: otp.trim(), userType: 'member' });
+      setUserId(verify.userId);
+      setUserRole('member');
+      joinGroup(groupCode);
+      onGroupCreated(groupCode);
+      toast.success('Joined group');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to join group');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleJoinGroupViaCode = async (code: string) => {
+    const normalized = code.trim().toUpperCase().slice(0, 6);
+    if (normalized.length < 6) return;
+    setGroupCode(normalized);
+    setIsLoading(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
-    joinGroup(groupCode);
-    onGroupCreated(groupCode);
+    joinGroup(normalized);
+    onGroupCreated(normalized);
+  };
+
+  const openScanner = () => {
+    setHasScanned(false);
+    setStopStream(false);
+    setCameraError(null);
+    setScannerReady(false);
+    setFacingMode('environment');
+    setTorch(false);
+    setScanOpen(true);
+  };
+
+  const closeScanner = () => {
+    setStopStream(true);
+    setTimeout(() => setScanOpen(false), 0);
+  };
+
+  const onScanUpdate = (err: any, result: any) => {
+    if (!scannerReady) setScannerReady(true);
+    if (hasScanned) return;
+    if (err) {
+      // non-fatal read errors are common; ignore
+    }
+    if (result) {
+      let text: string = '';
+      // different versions expose text differently
+      // @ts-ignore
+      text = result?.text ?? (typeof result?.getText === 'function' ? result.getText() : '');
+      if (!text) return;
+      const parsed = tryParseQR(text);
+      if (parsed && parsed.kind === 'group_invite' && parsed.groupCode) {
+        setHasScanned(true);
+        try { if (navigator.vibrate) navigator.vibrate(15); } catch {}
+        closeScanner();
+        handleJoinGroupViaCode(String(parsed.groupCode));
+        return;
+      }
+      if (parsed && parsed.kind === 'member_card' && parsed.groupCode) {
+        setHasScanned(true);
+        try { if (navigator.vibrate) navigator.vibrate(15); } catch {}
+        closeScanner();
+        handleJoinGroupViaCode(String(parsed.groupCode));
+      }
+    }
   };
 
   const handleCopyCode = async () => {
@@ -309,6 +435,26 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
       return () => clearTimeout(timer);
     }
   }, [generatedCode]);
+
+  // Auto-join when landing with ?join=CODE in URL (from native camera scan)
+  useEffect(() => {
+    if (autoJoinTriggered) return;
+    try {
+      const url = new URL(window.location.href);
+      const joinParam = url.searchParams.get('join');
+      if (joinParam) {
+        const normalized = joinParam.toString().trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+        if (normalized.length === 6) {
+          setAutoJoinTriggered(true);
+          setMode('join');
+          // remove param to avoid re-trigger on refresh/navigation
+          url.searchParams.delete('join');
+          window.history.replaceState({}, '', url.toString());
+          handleJoinGroupViaCode(normalized);
+        }
+      }
+    } catch {}
+  }, [autoJoinTriggered]);
 
   const AnimatedChar: React.FC<{ char: string; index: number }> = ({ char, index }) => (
     <motion.div
@@ -497,12 +643,12 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
                           transition={{ duration: 2, repeat: Infinity }}
                           style={{ boxShadow: '0 0 0 8px rgba(99,102,241,0.08)' }}
                         />
-                        <QRCode id="group-qr-code" value={generatedCode} size={160} fgColor="#0F172A" bgColor="#FFFFFF" />
-                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <QRCode id="group-qr-code" value={qrRedirectURL} size={160} fgColor="#0F172A" bgColor="#FFFFFF" />
+                        {/* <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                           <div className="w-10 h-10 rounded-full bg-white border shadow grid place-items-center">
                             <img src={simhasthaLogo} alt="logo" className="w-8 h-8 object-contain" />
                           </div>
-                        </div>
+                        </div> */}
                       </div>
                       <div className="flex flex-wrap items-center justify-center gap-2 w-full mt-1">
                         <Button variant="outline" size="sm" onClick={handleDownloadQR} className="w-full sm:w-auto">{t.downloadQR}</Button>
@@ -604,6 +750,14 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
             </div>
             
             <Button
+              variant="outline"
+              onClick={openScanner}
+              className="w-full"
+            >
+              {t.scanQr}
+            </Button>
+            
+            <Button
               onClick={handleJoinGroup}
               disabled={groupCode.length < 6 || isLoading}
               className="w-full h-button bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -622,6 +776,73 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
             </Button>
           </div>
         </Card>
+
+        <Sheet open={scanOpen} onOpenChange={(open) => { if (open) { openScanner(); } else { closeScanner(); } }}>
+          <SheetContent side="bottom" className="space-y-4">
+            <SheetHeader>
+              <SheetTitle>{t.scanQr}</SheetTitle>
+              <SheetDescription>{t.scanHelp}</SheetDescription>
+            </SheetHeader>
+            <div className="relative rounded-xl overflow-hidden border bg-black">
+              {/* Camera viewport */}
+              <div className="relative w-full" style={{ aspectRatio: '3 / 2' }}>
+                <BarcodeScanner
+                  onUpdate={onScanUpdate}
+                  onError={(e: any) => setCameraError(String((e && (e.message || e)) || 'Camera error'))}
+                  stopStream={stopStream}
+                  width={'100%'}
+                  height={'100%'}
+                  facingMode={facingMode}
+                  torch={torch}
+                  videoConstraints={{ facingMode: { ideal: facingMode } }}
+                />
+
+                {/* Shimmer/loading overlay until first frame arrives */}
+                {!scannerReady && !cameraError && (
+                  <div className="absolute inset-0 grid place-items-center bg-black/50">
+                    <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />
+                  </div>
+                )}
+
+                {/* Error overlay */}
+                {cameraError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-white text-sm p-4 text-center">
+                    <div>Camera error. Please allow permission or try another browser.</div>
+                    <div className="opacity-80">{cameraError}</div>
+                  </div>
+                )}
+
+                {/* Elegant framing UI */}
+                <div className="pointer-events-none absolute inset-0">
+                  {/* dark mask with transparent center */}
+                  <div className="absolute inset-0 bg-black/60" style={{
+                    maskImage: 'radial-gradient(ellipse at center, transparent 38%, black 42%)',
+                    WebkitMaskImage: 'radial-gradient(ellipse at center, transparent 38%, black 42%)',
+                  }} />
+                  {/* corner accents */}
+                  <div className="absolute inset-0">
+                    <div className="absolute left-1/2 top-[16%] -translate-x-1/2 h-0.5 w-24 bg-white/70 animate-pulse" />
+                    <div className="absolute left-[18%] top-[28%] h-8 w-8 border-l-2 border-t-2 border-white/80 rounded-tl" />
+                    <div className="absolute right-[18%] top-[28%] h-8 w-8 border-r-2 border-t-2 border-white/80 rounded-tr" />
+                    <div className="absolute left-[18%] bottom-[28%] h-8 w-8 border-l-2 border-b-2 border-white/80 rounded-bl" />
+                    <div className="absolute right-[18%] bottom-[28%] h-8 w-8 border-r-2 border-b-2 border-white/80 rounded-br" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div className="absolute right-3 top-3 z-10 flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setFacingMode(m => m === 'environment' ? 'user' : 'environment')}>
+                  {facingMode === 'environment' ? 'Flip' : 'Rear'}
+                </Button>
+                <Button size="sm" variant={torch ? 'default' : 'outline'} onClick={() => setTorch(t => !t)}>
+                  {torch ? 'Torch On' : 'Torch'}
+                </Button>
+              </div>
+            </div>
+            <Button variant="outline" onClick={closeScanner} className="w-full">{t.back}</Button>
+          </SheetContent>
+        </Sheet>
 
         <Button
           variant="outline"

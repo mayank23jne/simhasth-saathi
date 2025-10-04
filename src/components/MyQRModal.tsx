@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Copy, Share2, QrCode } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { toast } from 'sonner';
+import { encodeQR } from '@/lib/qr';
+import { getSimpleLocation } from '@/lib/location';
 
 interface MyQRModalProps {
   isOpen: boolean;
@@ -20,15 +22,34 @@ interface MyQRModalProps {
 }
 
 const MyQRModal: React.FC<MyQRModalProps> = ({ isOpen, onClose, user }) => {
-  // Prepare QR data (offline-friendly, JSON)
-  const qrData = useMemo(() => JSON.stringify({
+  const [latitude, setLatitude] = useState<number | undefined>(undefined);
+  const [longitude, setLongitude] = useState<number | undefined>(undefined);
+  const [locationName, setLocationName] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let mounted = true;
+    getSimpleLocation({ enableHighAccuracy: true, maximumAge: 30000, timeout: 8000 }).then((loc) => {
+      if (!mounted || !loc) return;
+      setLatitude(loc.latitude);
+      setLongitude(loc.longitude);
+      setLocationName(loc.locationName);
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, [isOpen]);
+
+  // Prepare standardized member_card QR (offline-friendly JSON)
+  const qrData = useMemo(() => encodeQR({
+    v: 1,
+    kind: 'member_card',
     id: user.id,
     name: user.name,
     groupCode: user.groupCode,
     phone: user.phone,
-    type: 'member',
-    ts: Date.now(),
-  }), [user]);
+    latitude,
+    longitude,
+    locationName,
+  }), [user, latitude, longitude, locationName]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(qrData);
@@ -75,6 +96,11 @@ const MyQRModal: React.FC<MyQRModalProps> = ({ isOpen, onClose, user }) => {
             <div className="my-2 rounded-xl bg-white p-2 shadow-inner border w-fit mx-auto">
               <QRCode value={qrData} size={160} />
             </div>
+            {(latitude !== undefined && longitude !== undefined) && (
+              <div className="text-[11px] text-muted-foreground text-center -mt-2">
+                {locationName ? `${locationName}` : `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`}
+              </div>
+            )}
             <div className="flex gap-2 w-full">
               <Button className="flex-1" variant="outline" onClick={handleCopy}>
                 <Copy className="h-4 w-4 mr-1" /> Copy QR Data

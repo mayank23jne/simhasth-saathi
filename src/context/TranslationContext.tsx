@@ -49,6 +49,8 @@ const translations: Translations = {
   sending: { en: 'Sending...', hi: 'भेज रहा है...', mr: 'पाठवत आहे...', sa: 'भेज रहा है...' },
   verifying: { en: 'Verifying...', hi: 'सत्यापित कर रहा है...', mr: 'सत्यापित करत आहे...', sa: 'सत्यापित कर रहा है...' },
   securityNotice: { en: 'Your data is encrypted and secure', hi: 'आपका डेटा एन्क्रिप्टेड और सुरक्षित है', mr: 'तुमचा डेटा सुरक्षित आहे', sa: 'आपका डेटा एन्क्रिप्टेड और सुरक्षित है' },
+  nameLabel: { en: 'Full Name', hi: 'पूरा नाम', mr: 'पूर्ण नाव', sa: 'पूरा नाम' },
+  namePlaceholder: { en: 'Your full name', hi: 'अपना पूरा नाम', mr: 'आपले पूर्ण नाव', sa: 'अपना पूरा नाम' },
   phoneLabel: { en: 'Phone Number', hi: 'फोन नंबर', mr: 'फोन नंबर', sa: 'फोन नंबर' },
   phonePlaceholder: { en: '+91 00000 00000', hi: '+91 00000 00000', mr: '+91 00000 00000', sa: '+91 00000 00000' },
   sosTitle: { en: 'Emergency Help', hi: 'आपातकालीन सहायता', mr: 'आपत्कालीन मदत', sa: 'आपातकालीन सहायता' },

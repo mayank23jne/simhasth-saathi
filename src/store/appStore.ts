@@ -12,6 +12,7 @@ export interface GroupMember {
 	name: string;
 	phone?: string;
 	groupCode?: string;
+	role?: 'admin' | 'member';
 	position?: GeoPoint;
 	lastUpdated?: number;
 	isSelf?: boolean;
@@ -63,6 +64,9 @@ export interface AppState {
 	// Identity / group
 	groupCode: string | null;
 	userId: string | null;
+	userName: string | null;
+	userPhone: string | null;
+	userRole: 'admin' | 'member' | null;
 	userLocation: GeoPoint | null;
 
 	// Entities
@@ -76,6 +80,9 @@ export interface AppState {
 	// Actions
 	setGroup: (groupCode: string | null) => void;
 	setUserId: (userId: string | null) => void;
+	setUserName: (name: string | null) => void;
+	setUserPhone: (phone: string | null) => void;
+	setUserRole: (role: 'admin' | 'member' | null) => void;
 	setUserLocation: (lat: number, lng: number) => void;
 
 	addMember: (member: GroupMember) => void;
@@ -112,6 +119,9 @@ export const useAppStore = create<AppState>()(
 		(set, get) => ({
 			groupCode: localStorage.getItem('groupCode') || null,
 			userId: localStorage.getItem('userId') || null,
+			userName: localStorage.getItem('userName') || null,
+			userPhone: localStorage.getItem('userPhone') || null,
+			userRole: (localStorage.getItem('userRole') as 'admin' | 'member' | null) || null,
 			userLocation: null,
 
 			members: [],
@@ -122,12 +132,31 @@ export const useAppStore = create<AppState>()(
 			notifications: [],
 
 			setGroup: (groupCode) => {
-				if (groupCode) localStorage.setItem('groupCode', groupCode); else localStorage.removeItem('groupCode');
+				if (groupCode) {
+					localStorage.setItem('groupCode', groupCode);
+					// Keep a mirrored key so UIs checking 'groupId' also see the latest
+					try { localStorage.setItem('groupId', groupCode); } catch {}
+				} else {
+					localStorage.removeItem('groupCode');
+					try { localStorage.removeItem('groupId'); } catch {}
+				}
 				set({ groupCode });
 			},
 			setUserId: (userId) => {
 				if (userId) localStorage.setItem('userId', userId); else localStorage.removeItem('userId');
 				set({ userId });
+			},
+			setUserName: (name) => {
+				if (name) localStorage.setItem('userName', name); else localStorage.removeItem('userName');
+				set({ userName: name });
+			},
+			setUserPhone: (phone) => {
+				if (phone) localStorage.setItem('userPhone', phone); else localStorage.removeItem('userPhone');
+				set({ userPhone: phone });
+			},
+			setUserRole: (role) => {
+				if (role) localStorage.setItem('userRole', role); else localStorage.removeItem('userRole');
+				set({ userRole: role });
 			},
 			setUserLocation: (lat, lng) => {
 				const currentUserId = get().userId || generateId('usr');
@@ -144,6 +173,9 @@ export const useAppStore = create<AppState>()(
 							members: state.members.map(m => m.isSelf ? {
 								...m,
 								id: currentUserId,
+								name: m.name || (get().userName || 'You'),
+								phone: m.phone || (get().userPhone || undefined),
+								role: m.role || get().userRole || undefined,
 								position: nextLocation,
 								lastUpdated: Date.now(),
 								path: nextPath.slice(Math.max(0, nextPath.length - 50)),
@@ -153,8 +185,10 @@ export const useAppStore = create<AppState>()(
 					return {
 						members: [{
 							id: currentUserId,
-							name: 'You',
+							name: get().userName || 'You',
 							isSelf: true,
+							phone: get().userPhone || undefined,
+							role: get().userRole || undefined,
 							position: nextLocation,
 							lastUpdated: Date.now(),
 							path: [{ lat, lng, ts: Date.now() }],
@@ -220,6 +254,9 @@ export const useAppStore = create<AppState>()(
 				qrScans: state.qrScans,
 				mapMarkers: state.mapMarkers,
 				notifications: state.notifications,
+				userName: state.userName,
+				userPhone: state.userPhone,
+				userRole: state.userRole,
 			}),
 		}
 	)
