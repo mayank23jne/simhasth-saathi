@@ -1,17 +1,24 @@
-import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
-import { Users, AlertCircle, Navigation, Locate, Info } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { StatusIndicator } from '@/components/ui/status-indicator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { MapContainer, TileLayer } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
-import 'leaflet-routing-machine';
-import { useTranslation } from '@/context/TranslationContext';
-import { useGroup } from '@/context/GroupContext';
-import { toast } from 'sonner';
-import type { GroupMember, MemberPathPoint } from '@/store/appStore';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  memo,
+  useRef,
+} from "react";
+import { Users, AlertCircle, Navigation, Locate, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { StatusIndicator } from "@/components/ui/status-indicator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MapContainer, TileLayer } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
+import "leaflet-routing-machine";
+import { useTranslation } from "@/context/TranslationContext";
+import { useGroup } from "@/context/GroupContext";
+import { toast } from "sonner";
+import type { GroupMember, MemberPathPoint } from "@/store/appStore";
 
 /** Lightweight coordinate type used for Leaflet interop. */
 type LatLng = { lat: number; lng: number; ts?: number };
@@ -30,7 +37,12 @@ function easeInOutQuad(t: number) {
 /**
  * Smoothly moves a marker from current to target position over a duration.
  */
-function smoothMoveMarker(marker: L.Marker, to: LatLng, durationMs: number, animStateMap: Map<L.Marker, { raf?: number }>) {
+function smoothMoveMarker(
+  marker: L.Marker,
+  to: LatLng,
+  durationMs: number,
+  animStateMap: Map<L.Marker, { raf?: number }>
+) {
   try {
     const fromLatLng = marker.getLatLng();
     const from = { lat: fromLatLng.lat, lng: fromLatLng.lng };
@@ -66,28 +78,36 @@ function smoothMoveMarker(marker: L.Marker, to: LatLng, durationMs: number, anim
 function smoothMoveMarkerAlongPath(
   marker: L.Marker,
   path: LatLng[],
-  animationState: React.MutableRefObject<Map<string, {
-    raf?: number;
-    currentPathIndex: number;
-    segmentStartTime: number;
-    segmentDuration: number;
-    pathId: string;
-  }>>,
+  animationState: React.MutableRefObject<
+    Map<
+      string,
+      {
+        raf?: number;
+        currentPathIndex: number;
+        segmentStartTime: number;
+        segmentDuration: number;
+        pathId: string;
+      }
+    >
+  >,
   memberId: string,
-  haversine: (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => number,
+  haversine: (
+    a: { lat: number; lng: number },
+    b: { lat: number; lng: number }
+  ) => number
 ) {
   if (!path || path.length < 2) {
     return;
   }
 
   // Use realistic walking speed (~5 km/h). Note: member movement may be globally disabled via DISABLE_MEMBER_MOVEMENT.
-  const WALK_SPEED_MPS = 5 * 1000 / 3600; // meters per second
+  const WALK_SPEED_MPS = (5 * 1000) / 3600; // meters per second
 
   const state = animationState.current.get(memberId) || {
     currentPathIndex: 0,
     segmentStartTime: 0,
     segmentDuration: 0,
-    pathId: ''
+    pathId: "",
   };
   animationState.current.set(memberId, state);
 
@@ -131,7 +151,9 @@ function smoothMoveMarkerAlongPath(
   };
 
   // Check if path has changed or if marker is at the end of the old path
-  const currentPathString = JSON.stringify(path.map(p => `${p.lat},${p.lng}`));
+  const currentPathString = JSON.stringify(
+    path.map((p) => `${p.lat},${p.lng}`)
+  );
   if (state.pathId !== currentPathString) {
     state.pathId = currentPathString;
     state.currentPathIndex = 0;
@@ -147,10 +169,19 @@ function smoothMoveMarkerAlongPath(
 
 const MapScreen: React.FC = () => {
   const { t } = useTranslation(); // ✅ Translation hook
-  const { members, setUserLocation, userLocation, mapMode, helpdeskTarget, setMapMode } = useGroup();
+  const {
+    members,
+    setUserLocation,
+    userLocation,
+    mapMode,
+    helpdeskTarget,
+    setMapMode,
+  } = useGroup();
   const [showGeofenceAlert, setShowGeofenceAlert] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<GroupMember | null>(null);
+  const [selectedMember, setSelectedMember] = useState<GroupMember | null>(
+    null
+  );
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userMarkerElRef = useRef<HTMLElement | null>(null);
@@ -186,13 +217,18 @@ const MapScreen: React.FC = () => {
   const fallbackRoutePopupRef = useRef<L.Popup | null>(null);
 
   // New ref for member path animations
-  const memberPathAnimStateRef = useRef<Map<string, {
-    raf?: number;
-    currentPathIndex: number;
-    segmentStartTime: number;
-    segmentDuration: number;
-    pathId: string; // To detect if the path itself has changed
-  }>>(new Map());
+  const memberPathAnimStateRef = useRef<
+    Map<
+      string,
+      {
+        raf?: number;
+        currentPathIndex: number;
+        segmentStartTime: number;
+        segmentDuration: number;
+        pathId: string; // To detect if the path itself has changed
+      }
+    >
+  >(new Map());
 
   // Frozen positions for members when movement is disabled
   const frozenMemberPosRef = useRef<Map<string, LatLng>>(new Map());
@@ -202,27 +238,35 @@ const MapScreen: React.FC = () => {
   const geofenceCenterRef = useRef<L.LatLng | null>(null);
   const geofenceRadiusRef = useRef<number>(0);
   const lastOutsideSetRef = useRef<Set<string>>(new Set());
-  const [geofenceBreachName, setGeofenceBreachName] = useState<string | null>(null);
+  const [geofenceBreachName, setGeofenceBreachName] = useState<string | null>(
+    null
+  );
   const [geofenceVersion, setGeofenceVersion] = useState<number>(0);
-  const [geofenceBreachMemberId, setGeofenceBreachMemberId] = useState<string | null>(null);
+  const [geofenceBreachMemberId, setGeofenceBreachMemberId] = useState<
+    string | null
+  >(null);
   const geofenceUpdateDebounceRef = useRef<number | null>(null);
   const geofencePositionsHashRef = useRef<string | null>(null);
 
   /**
    * Haversine distance in meters between two coordinates.
    */
-  const haversine = useCallback((a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
-    const R = 6371000;
-    const dLat = (b.lat - a.lat) * Math.PI / 180;
-    const dLng = (b.lng - a.lng) * Math.PI / 180;
-    const lat1 = a.lat * Math.PI / 180;
-    const lat2 = b.lat * Math.PI / 180;
-    const sinDLat = Math.sin(dLat / 2);
-    const sinDLng = Math.sin(dLng / 2);
-    const aa = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
-    const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
-    return R * c;
-  }, []);
+  const haversine = useCallback(
+    (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+      const R = 6371000;
+      const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+      const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+      const lat1 = (a.lat * Math.PI) / 180;
+      const lat2 = (b.lat * Math.PI) / 180;
+      const sinDLat = Math.sin(dLat / 2);
+      const sinDLng = Math.sin(dLng / 2);
+      const aa =
+        sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+      const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+      return R * c;
+    },
+    []
+  );
 
   // Road snapping (OSRM) cache and control
   const memberRoadPathRef = useRef<Map<string, LatLng[]>>(new Map());
@@ -230,85 +274,114 @@ const MapScreen: React.FC = () => {
   const memberRoadSnapInFlightRef = useRef<Set<string>>(new Set());
   const memberRoadSnapLastReqTsRef = useRef<Map<string, number>>(new Map());
 
-  const requestRoadSnapForSegment = useCallback(async (memberId: string, from: LatLng, to: LatLng) => {
-    try {
-      if (memberRoadSnapInFlightRef.current.has(memberId)) return;
-      const now = Date.now();
-      const lastTs = memberRoadSnapLastReqTsRef.current.get(memberId) || 0;
-      if (now - lastTs < 2500) return; // throttle per member
-      memberRoadSnapLastReqTsRef.current.set(memberId, now);
-      memberRoadSnapInFlightRef.current.add(memberId);
+  const requestRoadSnapForSegment = useCallback(
+    async (memberId: string, from: LatLng, to: LatLng) => {
+      try {
+        if (memberRoadSnapInFlightRef.current.has(memberId)) return;
+        const now = Date.now();
+        const lastTs = memberRoadSnapLastReqTsRef.current.get(memberId) || 0;
+        if (now - lastTs < 2500) return; // throttle per member
+        memberRoadSnapLastReqTsRef.current.set(memberId, now);
+        memberRoadSnapInFlightRef.current.add(memberId);
 
-      const distM = haversine({ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng });
-      if (distM < 20) { // very small hops not worth snapping
+        const distM = haversine(
+          { lat: from.lat, lng: from.lng },
+          { lat: to.lat, lng: to.lng }
+        );
+        if (distM < 20) {
+          // very small hops not worth snapping
+          memberRoadSnapInFlightRef.current.delete(memberId);
+          return;
+        }
+
+        const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("osrm failed");
+        const data = await res.json();
+        const coords: [number, number][] | undefined =
+          data?.routes?.[0]?.geometry?.coordinates;
+        if (!coords || coords.length < 2) throw new Error("no coords");
+        const snapped: LatLng[] = coords.map((c) => ({ lat: c[1], lng: c[0] }));
+        memberRoadPathRef.current.set(memberId, snapped);
+      } catch {
+        // ignore failures, we will fallback to straight movement
+      } finally {
         memberRoadSnapInFlightRef.current.delete(memberId);
-        return;
       }
-
-      const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('osrm failed');
-      const data = await res.json();
-      const coords: [number, number][] | undefined = data?.routes?.[0]?.geometry?.coordinates;
-      if (!coords || coords.length < 2) throw new Error('no coords');
-      const snapped: LatLng[] = coords.map((c) => ({ lat: c[1], lng: c[0] }));
-      memberRoadPathRef.current.set(memberId, snapped);
-    } catch {
-      // ignore failures, we will fallback to straight movement
-    } finally {
-      memberRoadSnapInFlightRef.current.delete(memberId);
-    }
-  }, [haversine]);
+    },
+    [haversine]
+  );
 
   // Directional triangle icons (rotated by heading)
-  const buildDirectionalIcon = useCallback((color: string, headingDeg?: number, highlight?: boolean) => {
-    const rotation = headingDeg ?? 0;
-    const html = `
+  const buildDirectionalIcon = useCallback(
+    (color: string, headingDeg?: number, highlight?: boolean) => {
+      const rotation = headingDeg ?? 0;
+      const html = `
       <div class="direction-icon-wrapper" style="position: relative; will-change: transform; transform: rotate(${rotation}deg);">
-        ${highlight ? '<div style="position:absolute; left:50%; top:50%; width:36px; height:36px; transform: translate(-50%, -50%); border-radius:50%; box-shadow: 0 0 0 6px rgba(37,99,235,0.20), 0 0 12px 4px rgba(37,99,235,0.25);"></div>' : ''}
+        ${
+          highlight
+            ? '<div style="position:absolute; left:50%; top:50%; width:36px; height:36px; transform: translate(-50%, -50%); border-radius:50%; box-shadow: 0 0 0 6px rgba(37,99,235,0.20), 0 0 12px 4px rgba(37,99,235,0.25);"></div>'
+            : ""
+        }
         <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <g>
             <polygon points="12,2 20,22 12,18 4,22" fill="${color}" stroke="white" stroke-width="2" />
           </g>
         </svg>
       </div>`;
-    return L.divIcon({ html, className: 'direction-icon', iconSize: [24, 24], iconAnchor: [12, 12] });
-  }, []);
+      return L.divIcon({
+        html,
+        className: "direction-icon",
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+    },
+    []
+  );
 
   // Memoized accessor that caches icons by a stable key
-  const getDirectionalIcon = useCallback((color: string, headingDeg?: number, highlight?: boolean) => {
-    const rounded = typeof headingDeg === 'number' ? Math.round(headingDeg / 5) * 5 : 0; // round to 5° for cache hits
-    const key = `${color}|${rounded}|${highlight ? 1 : 0}`;
-    const hit = directionalIconCacheRef.current.get(key);
-    if (hit) return hit;
-    const icon = buildDirectionalIcon(color, rounded, highlight);
-    directionalIconCacheRef.current.set(key, icon);
-    return icon;
-  }, [buildDirectionalIcon]);
+  const getDirectionalIcon = useCallback(
+    (color: string, headingDeg?: number, highlight?: boolean) => {
+      const rounded =
+        typeof headingDeg === "number" ? Math.round(headingDeg / 5) * 5 : 0; // round to 5° for cache hits
+      const key = `${color}|${rounded}|${highlight ? 1 : 0}`;
+      const hit = directionalIconCacheRef.current.get(key);
+      if (hit) return hit;
+      const icon = buildDirectionalIcon(color, rounded, highlight);
+      directionalIconCacheRef.current.set(key, icon);
+      return icon;
+    },
+    [buildDirectionalIcon]
+  );
 
   // Smoothly animate rotation without recreating the icon to avoid flicker
-  const animateHeadingRotation = useCallback((fromDeg: number, toDeg: number, durationMs: number) => {
-    const el = userMarkerElRef.current as HTMLElement | null;
-    if (!el) return;
-    const wrapper = el.querySelector('.direction-icon-wrapper') as HTMLElement | null;
-    if (!wrapper) return;
-    // normalize shortest rotation path
-    let start = fromDeg;
-    let end = toDeg;
-    let delta = end - start;
-    if (delta > 180) delta -= 360;
-    if (delta < -180) delta += 360;
-    const startTs = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - startTs) / durationMs);
-      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      const angle = start + delta * eased;
-      wrapper.style.transform = `rotate(${angle}deg)`;
-      if (t < 1) requestAnimationFrame(step);
-      else lastHeadingRef.current = ((angle % 360) + 360) % 360;
-    };
-    requestAnimationFrame(step);
-  }, []);
+  const animateHeadingRotation = useCallback(
+    (fromDeg: number, toDeg: number, durationMs: number) => {
+      const el = userMarkerElRef.current as HTMLElement | null;
+      if (!el) return;
+      const wrapper = el.querySelector(
+        ".direction-icon-wrapper"
+      ) as HTMLElement | null;
+      if (!wrapper) return;
+      // normalize shortest rotation path
+      let start = fromDeg;
+      let end = toDeg;
+      let delta = end - start;
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+      const startTs = performance.now();
+      const step = (now: number) => {
+        const t = Math.min(1, (now - startTs) / durationMs);
+        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const angle = start + delta * eased;
+        wrapper.style.transform = `rotate(${angle}deg)`;
+        if (t < 1) requestAnimationFrame(step);
+        else lastHeadingRef.current = ((angle % 360) + 360) % 360;
+      };
+      requestAnimationFrame(step);
+    },
+    []
+  );
 
   // Helpdesk pin icon (SVG-based, no default Leaflet icon)
   const buildHelpdeskIcon = useCallback(() => {
@@ -317,7 +390,12 @@ const MapScreen: React.FC = () => {
         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#ef4444" stroke="white" stroke-width="1.5" />
         <circle cx="12" cy="9" r="3.25" fill="white"/>
       </svg>`;
-    return L.divIcon({ html: svg, className: 'helpdesk-pin', iconSize: [28, 28], iconAnchor: [14, 28] });
+    return L.divIcon({
+      html: svg,
+      className: "helpdesk-pin",
+      iconSize: [28, 28],
+      iconAnchor: [14, 28],
+    });
   }, []);
 
   // Track user location with tight throttling (0.8–1.2s) and feed into GroupContext
@@ -347,9 +425,11 @@ const MapScreen: React.FC = () => {
         lastGeoUpdateTsRef.current = now;
         const userLat = position.coords.latitude;
         const userLng = position.coords.longitude;
-        const heading = typeof position.coords.heading === 'number' && !Number.isNaN(position.coords.heading)
-          ? position.coords.heading
-          : undefined;
+        const heading =
+          typeof position.coords.heading === "number" &&
+          !Number.isNaN(position.coords.heading)
+            ? position.coords.heading
+            : undefined;
         // if browser heading missing, compute from last point
         if (heading == null && prevUserPosRef.current) {
           const dLat = userLat - prevUserPosRef.current.lat;
@@ -357,44 +437,54 @@ const MapScreen: React.FC = () => {
           if (Math.abs(dLat) > 1e-9 || Math.abs(dLng) > 1e-9) {
             const rad = Math.atan2(dLng, dLat);
             const computed = ((rad * 180) / Math.PI + 360) % 360;
-            prevHeadingRef.current = (lastHeadingRef.current ?? computed);
+            prevHeadingRef.current = lastHeadingRef.current ?? computed;
             lastHeadingRef.current = computed;
           }
         } else {
-          if (typeof heading === 'number') {
-            prevHeadingRef.current = (lastHeadingRef.current ?? heading);
+          if (typeof heading === "number") {
+            prevHeadingRef.current = lastHeadingRef.current ?? heading;
             lastHeadingRef.current = heading;
           }
         }
         prevUserPosRef.current = { lat: userLat, lng: userLng };
+        console.info(userLat, "UserLat");
+        console.info(userLng, "userLng");
         setUserLocation(userLat, userLng);
       },
-      () => toast.error('Geolocation error'),
+      () => toast.error("Geolocation error"),
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
   }, [setUserLocation]);
-const initializedRef = useRef(false);
-const DEFAULT_ZOOM = 16; // default zoom at initialization
-// Optimization flags: when true, movement is disabled; keep semantics explicit
-const DISABLE_MEMBER_MOVEMENT = true; // Disable group member movement (keep markers static)
-const DISABLE_USER_MOVEMENT = false; // Disable user marker movement (false = movement enabled)
-const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
+  const initializedRef = useRef(false);
+  const DEFAULT_ZOOM = 16; // default zoom at initialization
+  // Optimization flags: when true, movement is disabled; keep semantics explicit
+  const DISABLE_MEMBER_MOVEMENT = true; // Disable group member movement (keep markers static)
+  const DISABLE_USER_MOVEMENT = false; // Disable user marker movement (false = movement enabled)
+  const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
   // Mount user marker and (optionally) path once when both map and user location exist
   useEffect(() => {
     if (!mapRef.current || !userLocation || userMarkerRef.current) return;
-    const marker = L.marker([userLocation.lat, userLocation.lng], { icon: buildDirectionalIcon('#2563eb', lastHeadingRef.current) }).addTo(mapRef.current);
+    const marker = L.marker([userLocation.lat, userLocation.lng], {
+      icon: buildDirectionalIcon("#2563eb", lastHeadingRef.current),
+    }).addTo(mapRef.current);
     userMarkerRef.current = marker;
     userMarkerElRef.current = marker.getElement() as HTMLElement | null;
     if (!DISABLE_USER_MOVEMENT) {
       const path = L.polyline([[userLocation.lat, userLocation.lng]], {
-        color: '#2563eb', weight: 4, opacity: 0.7, renderer: L.canvas(),
+        color: "#2563eb",
+        weight: 4,
+        opacity: 0.7,
+        renderer: L.canvas(),
       }).addTo(mapRef.current);
       userPathRef.current = path;
     }
     // initial view without changing zoom level drastically
-    mapRef.current.setView([userLocation.lat, userLocation.lng], mapRef.current.getZoom());
+    mapRef.current.setView(
+      [userLocation.lat, userLocation.lng],
+      mapRef.current.getZoom()
+    );
   }, [userLocation, buildDirectionalIcon]);
 
   // Imperatively update user marker and path on userLocation change (smooth)
@@ -412,9 +502,17 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     }
 
     if (userMarkerRef.current) {
-      smoothMoveMarker(userMarkerRef.current, userLocation, 280, userAnimRefs.current);
+      smoothMoveMarker(
+        userMarkerRef.current,
+        userLocation,
+        280,
+        userAnimRefs.current
+      );
       // rotate smoothly between previous and latest heading
-      const toHeading = typeof lastHeadingRef.current === 'number' ? lastHeadingRef.current : prevHeadingRef.current;
+      const toHeading =
+        typeof lastHeadingRef.current === "number"
+          ? lastHeadingRef.current
+          : prevHeadingRef.current;
       const fromHeading = prevHeadingRef.current;
       animateHeadingRotation(fromHeading, toHeading, 260);
     }
@@ -423,7 +521,9 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
       // Cap the number of path points to avoid memory/render bloat
       const latlngs = userPathRef.current.getLatLngs() as unknown as L.LatLng[];
       if (Array.isArray(latlngs) && latlngs.length > USER_PATH_MAX_POINTS) {
-        userPathRef.current.setLatLngs(latlngs.slice(latlngs.length - USER_PATH_MAX_POINTS));
+        userPathRef.current.setLatLngs(
+          latlngs.slice(latlngs.length - USER_PATH_MAX_POINTS)
+        );
       }
     }
 
@@ -443,13 +543,16 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
   }, [userLocation, animateHeadingRotation]); // trim unused dep to avoid needless reruns
 
   // Constant value; no need to memoize
-  const groupStatus: 'safe' = 'safe';
+  const groupStatus: "safe" = "safe";
 
   // Derived stats for info panel
   const { totalCount, alertCount, safeCount, lastUpdatedTs } = useMemo(() => {
     const total = members.length;
     const alerts = members.reduce((acc: number, m: GroupMember) => {
-      const isAlert = (m as any)?.status === 'alert' || (m as any)?.isAlert === true || (m as any)?.alert === true;
+      const isAlert =
+        (m as any)?.status === "alert" ||
+        (m as any)?.isAlert === true ||
+        (m as any)?.alert === true;
       return acc + (isAlert ? 1 : 0);
     }, 0);
     const safe = Math.max(0, total - alerts);
@@ -457,12 +560,17 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     for (const m of members as GroupMember[]) {
       if (Array.isArray(m.path) && m.path.length > 0) {
         const ts = m.path[m.path.length - 1]?.ts ?? 0;
-        if (typeof ts === 'number' && ts > latest) latest = ts;
-      } else if (typeof (m as any)?.updatedAt === 'number') {
+        if (typeof ts === "number" && ts > latest) latest = ts;
+      } else if (typeof (m as any)?.updatedAt === "number") {
         if ((m as any).updatedAt > latest) latest = (m as any).updatedAt;
       }
     }
-    return { totalCount: total, alertCount: alerts, safeCount: safe, lastUpdatedTs: latest };
+    return {
+      totalCount: total,
+      alertCount: alerts,
+      safeCount: safe,
+      lastUpdatedTs: latest,
+    };
   }, [members]);
 
   // Close info panel on outside click
@@ -471,19 +579,24 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     const handler = (ev: MouseEvent) => {
       const target = ev.target as Node | null;
       if (!target) return;
-      const inPanel = infoPanelRef.current && infoPanelRef.current.contains(target);
-      const inButton = infoButtonRef.current && infoButtonRef.current.contains(target);
+      const inPanel =
+        infoPanelRef.current && infoPanelRef.current.contains(target);
+      const inButton =
+        infoButtonRef.current && infoButtonRef.current.contains(target);
       if (!inPanel && !inButton) {
         setShowInfoPanel(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, [showInfoPanel]);
 
   const handleLocate = useCallback(() => {
     if (userLocation && mapRef.current) {
-      mapRef.current.flyTo([userLocation.lat, userLocation.lng], mapRef.current.getZoom());
+      mapRef.current.flyTo(
+        [userLocation.lat, userLocation.lng],
+        mapRef.current.getZoom()
+      );
     }
   }, [userLocation]);
 
@@ -495,7 +608,12 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     members.forEach((m: GroupMember) => {
       if (m?.position?.lat != null && m?.position?.lng != null) {
         positions.push([m.position.lat, m.position.lng]);
-        if (!m.isSelf) candidates.push({ id: m.id, lat: m.position.lat, lng: m.position.lng });
+        if (!m.isSelf)
+          candidates.push({
+            id: m.id,
+            lat: m.position.lat,
+            lng: m.position.lng,
+          });
       }
     });
     if (userLocation) {
@@ -506,14 +624,25 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     // Select/refresh forced-outside as farthest non-self from centroid
     try {
       if (candidates.length > 0) {
-        const centerLat0 = positions.reduce((acc, p) => acc + p[0], 0) / positions.length;
-        const centerLng0 = positions.reduce((acc, p) => acc + p[1], 0) / positions.length;
-        const farthest = candidates.reduce((best: { id: string; dist: number } | null, cur) => {
-          const d = haversine({ lat: cur.lat, lng: cur.lng }, { lat: centerLat0, lng: centerLng0 });
-          if (!best || d > best.dist) return { id: cur.id, dist: d };
-          return best;
-        }, null);
-        if (!forcedOutsideMemberIdRef.current || !candidates.some(c => c.id === forcedOutsideMemberIdRef.current)) {
+        const centerLat0 =
+          positions.reduce((acc, p) => acc + p[0], 0) / positions.length;
+        const centerLng0 =
+          positions.reduce((acc, p) => acc + p[1], 0) / positions.length;
+        const farthest = candidates.reduce(
+          (best: { id: string; dist: number } | null, cur) => {
+            const d = haversine(
+              { lat: cur.lat, lng: cur.lng },
+              { lat: centerLat0, lng: centerLng0 }
+            );
+            if (!best || d > best.dist) return { id: cur.id, dist: d };
+            return best;
+          },
+          null
+        );
+        if (
+          !forcedOutsideMemberIdRef.current ||
+          !candidates.some((c) => c.id === forcedOutsideMemberIdRef.current)
+        ) {
           forcedOutsideMemberIdRef.current = farthest?.id ?? candidates[0].id;
         }
       }
@@ -528,11 +657,16 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
       const filteredPositions: [number, number][] = [];
       members.forEach((m: GroupMember) => {
         if (m?.position?.lat != null && m?.position?.lng != null) {
-          if (forcedOutsideMemberIdRef.current && m.id === forcedOutsideMemberIdRef.current) return;
+          if (
+            forcedOutsideMemberIdRef.current &&
+            m.id === forcedOutsideMemberIdRef.current
+          )
+            return;
           filteredPositions.push([m.position.lat, m.position.lng]);
         }
       });
-      if (userLocation) filteredPositions.push([userLocation.lat, userLocation.lng]);
+      if (userLocation)
+        filteredPositions.push([userLocation.lat, userLocation.lng]);
       const base = filteredPositions.length > 0 ? filteredPositions : positions;
       const centerLat = base.reduce((acc, p) => acc + p[0], 0) / base.length;
       const centerLng = base.reduce((acc, p) => acc + p[1], 0) / base.length;
@@ -549,146 +683,197 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
       if (mapRef.current) {
         const map = mapRef.current;
-        if (groupGeofenceCircleRef.current && map.hasLayer(groupGeofenceCircleRef.current)) {
+        if (
+          groupGeofenceCircleRef.current &&
+          map.hasLayer(groupGeofenceCircleRef.current)
+        ) {
           groupGeofenceCircleRef.current.setLatLng(center);
           groupGeofenceCircleRef.current.setRadius(radius);
         } else {
           groupGeofenceCircleRef.current = L.circle(center, {
             radius,
-            color: '#f59e0b',
+            color: "#f59e0b",
             weight: 2,
-            fillColor: '#f59e0b',
+            fillColor: "#f59e0b",
             fillOpacity: 0.08,
             interactive: false,
           }).addTo(map);
         }
-        setGeofenceVersion(v => v + 1);
+        setGeofenceVersion((v) => v + 1);
       }
     } catch {
       // ignore geofence calc errors
     }
   }, [members, userLocation]);
 
-  
-
   // Debounced helper to update routing control waypoints or fallback line
-  const updateLiveRoute = useCallback((map: L.Map, userPos: L.LatLng, memberPos: L.LatLng, selectedMemberId: string) => {
-    if (routeUpdateDebounceRef.current) {
-      window.clearTimeout(routeUpdateDebounceRef.current);
-      routeUpdateDebounceRef.current = null;
-    }
-
-    routeUpdateDebounceRef.current = window.setTimeout(() => {
-      const waypoints = [userPos, memberPos];
-
-      const createOrUpdateRoutingControl = () => {
-        if (osrmRoutingControlRef.current) {
-          osrmRoutingControlRef.current.setWaypoints(waypoints);
-        } else {
-          const osrmRouter = (L as any).Routing.OSRMv1 ? new (L as any).Routing.OSRMv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }) : undefined;
-          osrmRoutingControlRef.current = (L as any).Routing.control({
-            waypoints,
-            router: osrmRouter,
-            addWaypoints: false,
-            draggableWaypoints: false,
-            fitSelectedRoutes: false,
-            show: false,
-            showAlternatives: true,
-            createMarker: () => null,
-            lineOptions: { styles: [{ color: '#2563eb', weight: 5, opacity: 0.9 }] },
-            altLineOptions: { styles: [{ color: '#9ca3af', weight: 4, opacity: 0.6, dashArray: '6,8' }] },
-          })
-            .on('routesfound', (e: any) => {
-              const route = e.routes?.[0];
-              if (!route) return;
-              const distKm = (route.summary.totalDistance / 1000).toFixed(2);
-              const etaMin = Math.round(route.summary.totalTime / 60);
-              const midIndex = Math.floor(route.coordinates.length / 2);
-              const mid = route.coordinates[midIndex];
-
-              // Remove fallback elements if OSRM route is found
-              if (fallbackRouteLineRef.current && map.hasLayer(fallbackRouteLineRef.current)) {
-                map.removeLayer(fallbackRouteLineRef.current);
-              }
-              if (fallbackRoutePopupRef.current) {
-                map.closePopup(fallbackRoutePopupRef.current);
-                fallbackRoutePopupRef.current = null;
-              }
-
-              if (!routePopupRef.current) {
-                routePopupRef.current = L.popup();
-              }
-              routePopupRef.current
-                .setLatLng([mid.lat, mid.lng])
-                .setContent(`<div><strong>${distKm} km</strong> • ${etaMin} min</div>`)
-                .openOn(map);
-            })
-            .on('routingerror', () => {
-              // OSRM failed, ensure fallback polyline is shown
-              if (osrmRoutingControlRef.current && map.hasLayer(osrmRoutingControlRef.current)) {
-                map.removeControl(osrmRoutingControlRef.current);
-                osrmRoutingControlRef.current = null;
-              }
-              drawFallbackRoute(); // Make sure fallback is active
-            })
-            .addTo(map);
-        }
-        // Ensure fallback elements are removed if OSRM control is active or successfully created
-        if (fallbackRouteLineRef.current && map.hasLayer(fallbackRouteLineRef.current)) {
-          map.removeLayer(fallbackRouteLineRef.current);
-        }
-        if (fallbackRoutePopupRef.current) {
-          map.closePopup(fallbackRoutePopupRef.current);
-          fallbackRoutePopupRef.current = null;
-        }
-      };
-
-      const drawFallbackRoute = () => {
-        // Ensure OSRM control and its popup are removed if fallback is drawn
-        if (osrmRoutingControlRef.current && map.hasLayer(osrmRoutingControlRef.current)) {
-          map.removeControl(osrmRoutingControlRef.current);
-          osrmRoutingControlRef.current = null;
-        }
-        if (routePopupRef.current) {
-          map.closePopup(routePopupRef.current);
-          routePopupRef.current = null;
-        }
-
-        if (!fallbackRouteLineRef.current) {
-          fallbackRouteLineRef.current = L.polyline([userPos, memberPos], { color: '#2563eb', weight: 5, opacity: 0.9, renderer: L.canvas() }).addTo(map);
-        } else {
-          fallbackRouteLineRef.current.setLatLngs([userPos, memberPos]);
-          if (!map.hasLayer(fallbackRouteLineRef.current)) map.addLayer(fallbackRouteLineRef.current);
-        }
-        const distM = map.distance(userPos, memberPos);
-        const etaMin = Math.round((distM / 1.4) / 60);
-        const mid = L.latLng((userPos.lat + memberPos.lat) / 2, (userPos.lng + memberPos.lng) / 2);
-        if (!fallbackRoutePopupRef.current) fallbackRoutePopupRef.current = L.popup();
-        fallbackRoutePopupRef.current
-          .setLatLng(mid)
-          .setContent(`<div><strong>${(distM / 1000).toFixed(2)} km</strong> • ${etaMin} min</div>`)
-          .openOn(map);
-      };
-
-      // Always show a fallback route immediately
-      drawFallbackRoute();
-      // Then try to get the OSRM route
-      createOrUpdateRoutingControl();
-
-      // Fit bounds only when a new member is selected
-      if (lastFitForMemberIdRef.current !== selectedMemberId) {
-        const bounds = L.latLngBounds([userPos, memberPos]);
-        map.fitBounds(bounds.pad(0.2), { animate: true } as any);
-        lastFitForMemberIdRef.current = selectedMemberId;
+  const updateLiveRoute = useCallback(
+    (
+      map: L.Map,
+      userPos: L.LatLng,
+      memberPos: L.LatLng,
+      selectedMemberId: string
+    ) => {
+      if (routeUpdateDebounceRef.current) {
+        window.clearTimeout(routeUpdateDebounceRef.current);
+        routeUpdateDebounceRef.current = null;
       }
 
-    }, 250);
-  }, []);
+      routeUpdateDebounceRef.current = window.setTimeout(() => {
+        const waypoints = [userPos, memberPos];
+
+        const createOrUpdateRoutingControl = () => {
+          if (osrmRoutingControlRef.current) {
+            osrmRoutingControlRef.current.setWaypoints(waypoints);
+          } else {
+            const osrmRouter = (L as any).Routing.OSRMv1
+              ? new (L as any).Routing.OSRMv1({
+                  serviceUrl: "https://router.project-osrm.org/route/v1",
+                })
+              : undefined;
+            osrmRoutingControlRef.current = (L as any).Routing.control({
+              waypoints,
+              router: osrmRouter,
+              addWaypoints: false,
+              draggableWaypoints: false,
+              fitSelectedRoutes: false,
+              show: false,
+              showAlternatives: true,
+              createMarker: () => null,
+              lineOptions: {
+                styles: [{ color: "#2563eb", weight: 5, opacity: 0.9 }],
+              },
+              altLineOptions: {
+                styles: [
+                  {
+                    color: "#9ca3af",
+                    weight: 4,
+                    opacity: 0.6,
+                    dashArray: "6,8",
+                  },
+                ],
+              },
+            })
+              .on("routesfound", (e: any) => {
+                const route = e.routes?.[0];
+                if (!route) return;
+                const distKm = (route.summary.totalDistance / 1000).toFixed(2);
+                const etaMin = Math.round(route.summary.totalTime / 60);
+                const midIndex = Math.floor(route.coordinates.length / 2);
+                const mid = route.coordinates[midIndex];
+
+                // Remove fallback elements if OSRM route is found
+                if (
+                  fallbackRouteLineRef.current &&
+                  map.hasLayer(fallbackRouteLineRef.current)
+                ) {
+                  map.removeLayer(fallbackRouteLineRef.current);
+                }
+                if (fallbackRoutePopupRef.current) {
+                  map.closePopup(fallbackRoutePopupRef.current);
+                  fallbackRoutePopupRef.current = null;
+                }
+
+                if (!routePopupRef.current) {
+                  routePopupRef.current = L.popup();
+                }
+                routePopupRef.current
+                  .setLatLng([mid.lat, mid.lng])
+                  .setContent(
+                    `<div><strong>${distKm} km</strong> • ${etaMin} min</div>`
+                  )
+                  .openOn(map);
+              })
+              .on("routingerror", () => {
+                // OSRM failed, ensure fallback polyline is shown
+                if (
+                  osrmRoutingControlRef.current &&
+                  map.hasLayer(osrmRoutingControlRef.current)
+                ) {
+                  map.removeControl(osrmRoutingControlRef.current);
+                  osrmRoutingControlRef.current = null;
+                }
+                drawFallbackRoute(); // Make sure fallback is active
+              })
+              .addTo(map);
+          }
+          // Ensure fallback elements are removed if OSRM control is active or successfully created
+          if (
+            fallbackRouteLineRef.current &&
+            map.hasLayer(fallbackRouteLineRef.current)
+          ) {
+            map.removeLayer(fallbackRouteLineRef.current);
+          }
+          if (fallbackRoutePopupRef.current) {
+            map.closePopup(fallbackRoutePopupRef.current);
+            fallbackRoutePopupRef.current = null;
+          }
+        };
+
+        const drawFallbackRoute = () => {
+          // Ensure OSRM control and its popup are removed if fallback is drawn
+          if (
+            osrmRoutingControlRef.current &&
+            map.hasLayer(osrmRoutingControlRef.current)
+          ) {
+            map.removeControl(osrmRoutingControlRef.current);
+            osrmRoutingControlRef.current = null;
+          }
+          if (routePopupRef.current) {
+            map.closePopup(routePopupRef.current);
+            routePopupRef.current = null;
+          }
+
+          if (!fallbackRouteLineRef.current) {
+            fallbackRouteLineRef.current = L.polyline([userPos, memberPos], {
+              color: "#2563eb",
+              weight: 5,
+              opacity: 0.9,
+              renderer: L.canvas(),
+            }).addTo(map);
+          } else {
+            fallbackRouteLineRef.current.setLatLngs([userPos, memberPos]);
+            if (!map.hasLayer(fallbackRouteLineRef.current))
+              map.addLayer(fallbackRouteLineRef.current);
+          }
+          const distM = map.distance(userPos, memberPos);
+          const etaMin = Math.round(distM / 1.4 / 60);
+          const mid = L.latLng(
+            (userPos.lat + memberPos.lat) / 2,
+            (userPos.lng + memberPos.lng) / 2
+          );
+          if (!fallbackRoutePopupRef.current)
+            fallbackRoutePopupRef.current = L.popup();
+          fallbackRoutePopupRef.current
+            .setLatLng(mid)
+            .setContent(
+              `<div><strong>${(distM / 1000).toFixed(
+                2
+              )} km</strong> • ${etaMin} min</div>`
+            )
+            .openOn(map);
+        };
+
+        // Always show a fallback route immediately
+        drawFallbackRoute();
+        // Then try to get the OSRM route
+        createOrUpdateRoutingControl();
+
+        // Fit bounds only when a new member is selected
+        if (lastFitForMemberIdRef.current !== selectedMemberId) {
+          const bounds = L.latLngBounds([userPos, memberPos]);
+          map.fitBounds(bounds.pad(0.2), { animate: true } as any);
+          lastFitForMemberIdRef.current = selectedMemberId;
+        }
+      }, 250);
+    },
+    []
+  );
 
   // Imperatively manage member markers for smooth updates (only in groups mode)
   useEffect(() => {
     if (!mapRef.current) return;
-    if (mapMode !== 'groups') {
+    if (mapMode !== "groups") {
       // remove any member markers when not in groups mode
       const map = mapRef.current;
       for (const [, marker] of memberMarkersRef.current.entries()) {
@@ -700,123 +885,195 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     const map = mapRef.current;
     const cache = memberMarkersRef.current;
     const presentIds = new Set<string>();
-    members.filter(m => !m.isSelf).forEach((m: GroupMember) => {
-      presentIds.add(m.id);
-      // choose or keep a forced-outside member id consistently
-      if (!forcedOutsideMemberIdRef.current) forcedOutsideMemberIdRef.current = m.id;
-      const isSelected = !!(selectedMember && selectedMember.id === m.id);
-      // Decide color based on geofence
-      const center = geofenceCenterRef.current;
-      const radius = geofenceRadiusRef.current;
-      let isOutside = false;
-      if (center && radius && m?.position) {
-        const dist = haversine(
-          { lat: m.position.lat, lng: m.position.lng },
-          { lat: center.lat, lng: center.lng }
-        );
-        const isForcedOutside = forcedOutsideMemberIdRef.current && m.id === forcedOutsideMemberIdRef.current;
-        isOutside = dist > radius || isForcedOutside;
-      }
-      const color = isOutside ? '#ef4444' : '#16a34a';
-      const iconKey = `${color}|${typeof m.headingDeg === 'number' ? Math.round(m.headingDeg / 5) * 5 : 0}|${isSelected ? 1 : 0}`;
-      const icon = getDirectionalIcon(color, m.headingDeg, isSelected);
-      const existing = cache.get(m.id);
+    members
+      .filter((m) => !m.isSelf)
+      .forEach((m: GroupMember) => {
+        presentIds.add(m.id);
+        // choose or keep a forced-outside member id consistently
+        if (!forcedOutsideMemberIdRef.current)
+          forcedOutsideMemberIdRef.current = m.id;
+        const isSelected = !!(selectedMember && selectedMember.id === m.id);
+        // Decide color based on geofence
+        const center = geofenceCenterRef.current;
+        const radius = geofenceRadiusRef.current;
+        let isOutside = false;
+        if (center && radius && m?.position) {
+          const dist = haversine(
+            { lat: m.position.lat, lng: m.position.lng },
+            { lat: center.lat, lng: center.lng }
+          );
+          const isForcedOutside =
+            forcedOutsideMemberIdRef.current &&
+            m.id === forcedOutsideMemberIdRef.current;
+          isOutside = dist > radius || isForcedOutside;
+        }
+        const color = isOutside ? "#ef4444" : "#16a34a";
+        const iconKey = `${color}|${
+          typeof m.headingDeg === "number"
+            ? Math.round(m.headingDeg / 5) * 5
+            : 0
+        }|${isSelected ? 1 : 0}`;
+        const icon = getDirectionalIcon(color, m.headingDeg, isSelected);
+        const existing = cache.get(m.id);
 
-      const memberPath = m.path && Array.isArray(m.path) && m.path.length > 1 ? m.path : null;
+        const memberPath =
+          m.path && Array.isArray(m.path) && m.path.length > 1 ? m.path : null;
 
-      // Prepare road-snapped segment for the latest movement (skip when disabled)
-      if (!DISABLE_MEMBER_MOVEMENT) {
-        const lastTwo: LatLng[] | null = (() => {
-          if (memberPath && memberPath.length >= 2) return [memberPath[memberPath.length - 2], memberPath[memberPath.length - 1]];
-          if (existing) {
-            const cur = existing.getLatLng();
-            if (m?.position) return [{ lat: cur.lat, lng: cur.lng }, { lat: m.position.lat, lng: m.position.lng }];
-          }
-          return null;
-        })();
-        if (lastTwo) {
-          const key = `${lastTwo[0].lat.toFixed(5)},${lastTwo[0].lng.toFixed(5)}|${lastTwo[1].lat.toFixed(5)},${lastTwo[1].lng.toFixed(5)}`;
-          const prevKey = memberRoadSnapKeyRef.current.get(m.id);
-          if (prevKey !== key) {
-            memberRoadSnapKeyRef.current.set(m.id, key);
-            // Fire and forget; cached in memberRoadPathRef
-            requestRoadSnapForSegment(m.id, lastTwo[0], lastTwo[1]);
+        // Prepare road-snapped segment for the latest movement (skip when disabled)
+        if (!DISABLE_MEMBER_MOVEMENT) {
+          const lastTwo: LatLng[] | null = (() => {
+            if (memberPath && memberPath.length >= 2)
+              return [
+                memberPath[memberPath.length - 2],
+                memberPath[memberPath.length - 1],
+              ];
+            if (existing) {
+              const cur = existing.getLatLng();
+              if (m?.position)
+                return [
+                  { lat: cur.lat, lng: cur.lng },
+                  { lat: m.position.lat, lng: m.position.lng },
+                ];
+            }
+            return null;
+          })();
+          if (lastTwo) {
+            const key = `${lastTwo[0].lat.toFixed(5)},${lastTwo[0].lng.toFixed(
+              5
+            )}|${lastTwo[1].lat.toFixed(5)},${lastTwo[1].lng.toFixed(5)}`;
+            const prevKey = memberRoadSnapKeyRef.current.get(m.id);
+            if (prevKey !== key) {
+              memberRoadSnapKeyRef.current.set(m.id, key);
+              // Fire and forget; cached in memberRoadPathRef
+              requestRoadSnapForSegment(m.id, lastTwo[0], lastTwo[1]);
+            }
           }
         }
-      }
 
-      if (existing) {
-        if (DISABLE_MEMBER_MOVEMENT) {
-          // Cancel any ongoing animations and keep marker static, but update icon
-          const pathAnim = memberPathAnimStateRef.current.get(m.id);
-          if (pathAnim && pathAnim.raf) cancelAnimationFrame(pathAnim.raf);
-          memberPathAnimStateRef.current.delete(m.id);
-          const moveAnim = memberAnimRefs.current.get(existing);
-          if (moveAnim && (moveAnim as any).raf) cancelAnimationFrame((moveAnim as any).raf);
-          memberAnimRefs.current.delete(existing);
-          // Snap marker to frozen position
-          let frozen = frozenMemberPosRef.current.get(m.id);
-          if (!frozen) {
-            const cur = existing.getLatLng();
-            frozen = { lat: cur.lat, lng: cur.lng };
-            frozenMemberPosRef.current.set(m.id, frozen);
-          }
-          existing.setLatLng([frozen.lat, frozen.lng]);
-          // Keep icon static while movement is disabled, but reflect geofence color (red outside)
-          const staticColor = isOutside ? '#ef4444' : '#16a34a';
-          const staticIconKey = `${staticColor}|0|${isSelected ? 1 : 0}`;
-          const prevKey = memberIconKeyRef.current.get(m.id);
-          if (prevKey !== staticIconKey) {
-            const staticIcon = getDirectionalIcon(staticColor, 0, isSelected);
-            existing.setIcon(staticIcon);
-            memberIconKeyRef.current.set(m.id, staticIconKey);
+        if (existing) {
+          if (DISABLE_MEMBER_MOVEMENT) {
+            // Cancel any ongoing animations and keep marker static, but update icon
+            const pathAnim = memberPathAnimStateRef.current.get(m.id);
+            if (pathAnim && pathAnim.raf) cancelAnimationFrame(pathAnim.raf);
+            memberPathAnimStateRef.current.delete(m.id);
+            const moveAnim = memberAnimRefs.current.get(existing);
+            if (moveAnim && (moveAnim as any).raf)
+              cancelAnimationFrame((moveAnim as any).raf);
+            memberAnimRefs.current.delete(existing);
+            // Snap marker to frozen position
+            let frozen = frozenMemberPosRef.current.get(m.id);
+            if (!frozen) {
+              const cur = existing.getLatLng();
+              frozen = { lat: cur.lat, lng: cur.lng };
+              frozenMemberPosRef.current.set(m.id, frozen);
+            }
+            existing.setLatLng([frozen.lat, frozen.lng]);
+            // Keep icon static while movement is disabled, but reflect geofence color (red outside)
+            const staticColor = isOutside ? "#ef4444" : "#16a34a";
+            const staticIconKey = `${staticColor}|0|${isSelected ? 1 : 0}`;
+            const prevKey = memberIconKeyRef.current.get(m.id);
+            if (prevKey !== staticIconKey) {
+              const staticIcon = getDirectionalIcon(staticColor, 0, isSelected);
+              existing.setIcon(staticIcon);
+              memberIconKeyRef.current.set(m.id, staticIconKey);
+            }
+          } else {
+            // Prefer road-snapped segment if available; else use member path; else fallback to jitter-filtered step
+            const snapped = memberRoadPathRef.current.get(m.id);
+            if (snapped && snapped.length > 1) {
+              smoothMoveMarkerAlongPath(
+                existing,
+                snapped,
+                memberPathAnimStateRef,
+                m.id,
+                haversine
+              );
+            } else if (memberPath) {
+              smoothMoveMarkerAlongPath(
+                existing,
+                memberPath,
+                memberPathAnimStateRef,
+                m.id,
+                haversine
+              );
+            } else {
+              const current = existing.getLatLng();
+              const dist = haversine(
+                { lat: current.lat, lng: current.lng },
+                { lat: m.position.lat, lng: m.position.lng }
+              );
+              const target =
+                dist < 6
+                  ? { lat: current.lat, lng: current.lng }
+                  : (m.position as { lat: number; lng: number });
+              smoothMoveMarker(
+                existing,
+                target as any,
+                900,
+                memberAnimRefs.current
+              );
+            }
+            const prevKey = memberIconKeyRef.current.get(m.id);
+            if (prevKey !== iconKey) {
+              existing.setIcon(icon);
+              memberIconKeyRef.current.set(m.id, iconKey);
+            }
           }
         } else {
-          // Prefer road-snapped segment if available; else use member path; else fallback to jitter-filtered step
-          const snapped = memberRoadPathRef.current.get(m.id);
-          if (snapped && snapped.length > 1) {
-            smoothMoveMarkerAlongPath(existing, snapped, memberPathAnimStateRef, m.id, haversine);
-          } else if (memberPath) {
-            smoothMoveMarkerAlongPath(existing, memberPath, memberPathAnimStateRef, m.id, haversine);
-          } else {
-            const current = existing.getLatLng();
-            const dist = haversine({ lat: current.lat, lng: current.lng }, { lat: m.position.lat, lng: m.position.lng });
-            const target = dist < 6 ? { lat: current.lat, lng: current.lng } : (m.position as {lat: number; lng: number});
-            smoothMoveMarker(existing, target as any, 900, memberAnimRefs.current);
+          const initialPosition = DISABLE_MEMBER_MOVEMENT
+            ? m.position
+            : memberPath && memberPath.length > 0
+            ? memberPath[0]
+            : m.position;
+          // When disabled, set icon color based on geofence (red outside), static heading
+          const frozenIcon = DISABLE_MEMBER_MOVEMENT
+            ? getDirectionalIcon(color, 0, isSelected)
+            : icon;
+          const newMarker = L.marker(
+            [initialPosition.lat, initialPosition.lng],
+            { icon: frozenIcon }
+          )
+            .addTo(map)
+            .bindTooltip(m.name, {
+              permanent: true,
+              direction: "top",
+              offset: L.point(0, -10),
+            });
+          newMarker.on("click", () => setSelectedMember(m));
+          cache.set(m.id, newMarker);
+          const newIconKey = DISABLE_MEMBER_MOVEMENT
+            ? `${color}|0|${isSelected ? 1 : 0}`
+            : iconKey;
+          memberIconKeyRef.current.set(m.id, newIconKey);
+          // Store frozen position upon creation
+          if (!frozenMemberPosRef.current.has(m.id)) {
+            frozenMemberPosRef.current.set(m.id, {
+              lat: initialPosition.lat,
+              lng: initialPosition.lng,
+            });
           }
-          const prevKey = memberIconKeyRef.current.get(m.id);
-          if (prevKey !== iconKey) {
-            existing.setIcon(icon);
-            memberIconKeyRef.current.set(m.id, iconKey);
+          if (!DISABLE_MEMBER_MOVEMENT) {
+            const snapped = memberRoadPathRef.current.get(m.id);
+            if (snapped && snapped.length > 1) {
+              smoothMoveMarkerAlongPath(
+                newMarker,
+                snapped,
+                memberPathAnimStateRef,
+                m.id,
+                haversine
+              );
+            } else if (memberPath) {
+              smoothMoveMarkerAlongPath(
+                newMarker,
+                memberPath,
+                memberPathAnimStateRef,
+                m.id,
+                haversine
+              );
+            }
           }
         }
-      } else {
-        const initialPosition = DISABLE_MEMBER_MOVEMENT
-          ? m.position
-          : (memberPath && memberPath.length > 0 ? memberPath[0] : m.position);
-        // When disabled, set icon color based on geofence (red outside), static heading
-        const frozenIcon = DISABLE_MEMBER_MOVEMENT ? getDirectionalIcon(color, 0, isSelected) : icon;
-        const newMarker = L.marker([initialPosition.lat, initialPosition.lng], { icon: frozenIcon })
-          .addTo(map)
-          .bindTooltip(m.name, { permanent: true, direction: 'top', offset: L.point(0, -10) });
-        newMarker.on('click', () => setSelectedMember(m));
-        cache.set(m.id, newMarker);
-        const newIconKey = DISABLE_MEMBER_MOVEMENT ? `${color}|0|${isSelected ? 1 : 0}` : iconKey;
-        memberIconKeyRef.current.set(m.id, newIconKey);
-        // Store frozen position upon creation
-        if (!frozenMemberPosRef.current.has(m.id)) {
-          frozenMemberPosRef.current.set(m.id, { lat: initialPosition.lat, lng: initialPosition.lng });
-        }
-        if (!DISABLE_MEMBER_MOVEMENT) {
-          const snapped = memberRoadPathRef.current.get(m.id);
-          if (snapped && snapped.length > 1) {
-            smoothMoveMarkerAlongPath(newMarker, snapped, memberPathAnimStateRef, m.id, haversine);
-          } else if (memberPath) {
-            smoothMoveMarkerAlongPath(newMarker, memberPath, memberPathAnimStateRef, m.id, haversine);
-          }
-        }
-      }
-    });
+      });
     // cleanup missing
     for (const [id, marker] of cache.entries()) {
       if (!presentIds.has(id)) {
@@ -853,19 +1110,33 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
         const map = mapRef.current;
         if (!map) return;
         // Remove routing controls and fallbacks
-        if (osrmRoutingControlRef.current && (map as any).hasLayer && (map as any).hasLayer(osrmRoutingControlRef.current)) {
+        if (
+          osrmRoutingControlRef.current &&
+          (map as any).hasLayer &&
+          (map as any).hasLayer(osrmRoutingControlRef.current)
+        ) {
           (map as any).removeControl(osrmRoutingControlRef.current);
           osrmRoutingControlRef.current = null;
         }
-        if (helpdeskRoutingControlRef.current && (map as any).hasLayer && (map as any).hasLayer(helpdeskRoutingControlRef.current)) {
+        if (
+          helpdeskRoutingControlRef.current &&
+          (map as any).hasLayer &&
+          (map as any).hasLayer(helpdeskRoutingControlRef.current)
+        ) {
           (map as any).removeControl(helpdeskRoutingControlRef.current);
           helpdeskRoutingControlRef.current = null;
         }
-        if (fallbackRouteLineRef.current && map.hasLayer(fallbackRouteLineRef.current)) {
+        if (
+          fallbackRouteLineRef.current &&
+          map.hasLayer(fallbackRouteLineRef.current)
+        ) {
           map.removeLayer(fallbackRouteLineRef.current);
           fallbackRouteLineRef.current = null;
         }
-        if (helpdeskPolylineRef.current && map.hasLayer(helpdeskPolylineRef.current)) {
+        if (
+          helpdeskPolylineRef.current &&
+          map.hasLayer(helpdeskPolylineRef.current)
+        ) {
           map.removeLayer(helpdeskPolylineRef.current);
           helpdeskPolylineRef.current = null;
         }
@@ -881,7 +1152,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           map.closePopup(helpdeskRoutePopupRef.current);
           helpdeskRoutePopupRef.current = null;
         }
-        if (groupGeofenceCircleRef.current && map.hasLayer(groupGeofenceCircleRef.current)) {
+        if (
+          groupGeofenceCircleRef.current &&
+          map.hasLayer(groupGeofenceCircleRef.current)
+        ) {
           map.removeLayer(groupGeofenceCircleRef.current);
           groupGeofenceCircleRef.current = null;
         }
@@ -893,7 +1167,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           map.removeLayer(userPathRef.current);
           userPathRef.current = null;
         }
-        if (helpdeskMarkerRef.current && map.hasLayer(helpdeskMarkerRef.current)) {
+        if (
+          helpdeskMarkerRef.current &&
+          map.hasLayer(helpdeskMarkerRef.current)
+        ) {
           map.removeLayer(helpdeskMarkerRef.current);
           helpdeskMarkerRef.current = null;
         }
@@ -913,9 +1190,9 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     if (!mapRef.current) return;
     const map = mapRef.current;
     const onMapClick = () => setSelectedMember(null);
-    map.on('click', onMapClick);
+    map.on("click", onMapClick);
     return () => {
-      map.off('click', onMapClick);
+      map.off("click", onMapClick);
     };
   }, []);
 
@@ -925,16 +1202,25 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     const map = mapRef.current;
 
     // Resolve current selected member from live members array
-    const selected = selectedMember ? members.find(m => m.id === selectedMember.id) : null;
-    const userPos = userLocation ? L.latLng(userLocation.lat, userLocation.lng) : null;
-    const memberPos = selected ? L.latLng(selected.position.lat, selected.position.lng) : null;
+    const selected = selectedMember
+      ? members.find((m) => m.id === selectedMember.id)
+      : null;
+    const userPos = userLocation
+      ? L.latLng(userLocation.lat, userLocation.lng)
+      : null;
+    const memberPos = selected
+      ? L.latLng(selected.position.lat, selected.position.lng)
+      : null;
 
     if (userPos && memberPos && selected) {
       updateLiveRoute(map, userPos, memberPos, selected.id);
       selectedMemberRef.current = selected;
     } else {
       // No active selection -> remove routing and popup if exists
-      if (osrmRoutingControlRef.current && map.hasLayer(osrmRoutingControlRef.current)) {
+      if (
+        osrmRoutingControlRef.current &&
+        map.hasLayer(osrmRoutingControlRef.current)
+      ) {
         map.removeControl(osrmRoutingControlRef.current);
         osrmRoutingControlRef.current = null;
       }
@@ -942,7 +1228,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
         map.closePopup(routePopupRef.current);
         routePopupRef.current = null;
       }
-      if (fallbackRouteLineRef.current && map.hasLayer(fallbackRouteLineRef.current)) {
+      if (
+        fallbackRouteLineRef.current &&
+        map.hasLayer(fallbackRouteLineRef.current)
+      ) {
         map.removeLayer(fallbackRouteLineRef.current);
         fallbackRouteLineRef.current = null;
       }
@@ -957,44 +1246,68 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
   // Keep geofence synced with current positions in groups mode (debounced to avoid jitter)
   useEffect(() => {
     if (!mapRef.current) return;
-    if (mapMode !== 'groups') return;
+    if (mapMode !== "groups") return;
     const map = mapRef.current;
 
     const allPositions: { id?: string; lat: number; lng: number }[] = [];
     const candidates: { id: string; lat: number; lng: number }[] = [];
     for (const m of members as GroupMember[]) {
       if (m?.position?.lat != null && m?.position?.lng != null) {
-        allPositions.push({ id: m.id, lat: m.position.lat, lng: m.position.lng });
-        if (!m.isSelf) candidates.push({ id: m.id, lat: m.position.lat, lng: m.position.lng });
+        allPositions.push({
+          id: m.id,
+          lat: m.position.lat,
+          lng: m.position.lng,
+        });
+        if (!m.isSelf)
+          candidates.push({
+            id: m.id,
+            lat: m.position.lat,
+            lng: m.position.lng,
+          });
       }
     }
-    if (userLocation) allPositions.push({ lat: userLocation.lat, lng: userLocation.lng });
+    if (userLocation)
+      allPositions.push({ lat: userLocation.lat, lng: userLocation.lng });
     if (allPositions.length === 0) return;
 
     // Choose farthest forced-outside when needed
     try {
       if (candidates.length > 0) {
-        const centerLat0 = allPositions.reduce((acc, p) => acc + p.lat, 0) / allPositions.length;
-        const centerLng0 = allPositions.reduce((acc, p) => acc + p.lng, 0) / allPositions.length;
-        const farthest = candidates.reduce((best: { id: string; dist: number } | null, cur) => {
-          const d = haversine({ lat: cur.lat, lng: cur.lng }, { lat: centerLat0, lng: centerLng0 });
-          if (!best || d > best.dist) return { id: cur.id, dist: d };
-          return best;
-        }, null);
-        if (!forcedOutsideMemberIdRef.current || !candidates.some(c => c.id === forcedOutsideMemberIdRef.current)) {
+        const centerLat0 =
+          allPositions.reduce((acc, p) => acc + p.lat, 0) / allPositions.length;
+        const centerLng0 =
+          allPositions.reduce((acc, p) => acc + p.lng, 0) / allPositions.length;
+        const farthest = candidates.reduce(
+          (best: { id: string; dist: number } | null, cur) => {
+            const d = haversine(
+              { lat: cur.lat, lng: cur.lng },
+              { lat: centerLat0, lng: centerLng0 }
+            );
+            if (!best || d > best.dist) return { id: cur.id, dist: d };
+            return best;
+          },
+          null
+        );
+        if (
+          !forcedOutsideMemberIdRef.current ||
+          !candidates.some((c) => c.id === forcedOutsideMemberIdRef.current)
+        ) {
           forcedOutsideMemberIdRef.current = farthest?.id ?? candidates[0].id;
         }
       }
     } catch {}
 
-    const positions = allPositions.filter(p => !p.id || p.id !== forcedOutsideMemberIdRef.current).map(p => ({ lat: p.lat, lng: p.lng }));
-    if (userLocation) positions.push({ lat: userLocation.lat, lng: userLocation.lng });
+    const positions = allPositions
+      .filter((p) => !p.id || p.id !== forcedOutsideMemberIdRef.current)
+      .map((p) => ({ lat: p.lat, lng: p.lng }));
+    if (userLocation)
+      positions.push({ lat: userLocation.lat, lng: userLocation.lng });
     if (positions.length === 0) return;
 
     const hash = positions
-      .map(p => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`)
+      .map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`)
       .sort()
-      .join('|');
+      .join("|");
     if (geofencePositionsHashRef.current === hash) return;
 
     if (geofenceUpdateDebounceRef.current) {
@@ -1004,12 +1317,17 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
     geofenceUpdateDebounceRef.current = window.setTimeout(() => {
       try {
-        const centerLat = positions.reduce((acc, p) => acc + p.lat, 0) / positions.length;
-        const centerLng = positions.reduce((acc, p) => acc + p.lng, 0) / positions.length;
+        const centerLat =
+          positions.reduce((acc, p) => acc + p.lat, 0) / positions.length;
+        const centerLng =
+          positions.reduce((acc, p) => acc + p.lng, 0) / positions.length;
         const center = L.latLng(centerLat, centerLng);
         let maxDist = 0;
         for (const p of positions) {
-          const d = haversine({ lat: p.lat, lng: p.lng }, { lat: centerLat, lng: centerLng });
+          const d = haversine(
+            { lat: p.lat, lng: p.lng },
+            { lat: centerLat, lng: centerLng }
+          );
           if (d > maxDist) maxDist = d;
         }
         const radius = Math.max(60, maxDist * 1.15);
@@ -1017,21 +1335,24 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
         geofenceCenterRef.current = center;
         geofenceRadiusRef.current = radius;
 
-        if (groupGeofenceCircleRef.current && map.hasLayer(groupGeofenceCircleRef.current)) {
+        if (
+          groupGeofenceCircleRef.current &&
+          map.hasLayer(groupGeofenceCircleRef.current)
+        ) {
           groupGeofenceCircleRef.current.setLatLng(center);
           groupGeofenceCircleRef.current.setRadius(radius);
         } else {
           groupGeofenceCircleRef.current = L.circle(center, {
             radius,
-            color: '#f59e0b',
+            color: "#f59e0b",
             weight: 2,
-            fillColor: '#f59e0b',
+            fillColor: "#f59e0b",
             fillOpacity: 0.08,
             interactive: false,
           }).addTo(map);
         }
         geofencePositionsHashRef.current = hash;
-        setGeofenceVersion(v => v + 1);
+        setGeofenceVersion((v) => v + 1);
       } catch {
         // ignore calc errors
       }
@@ -1042,8 +1363,11 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
-    if (mapMode !== 'groups') {
-      if (groupGeofenceCircleRef.current && map.hasLayer(groupGeofenceCircleRef.current)) {
+    if (mapMode !== "groups") {
+      if (
+        groupGeofenceCircleRef.current &&
+        map.hasLayer(groupGeofenceCircleRef.current)
+      ) {
         map.removeLayer(groupGeofenceCircleRef.current);
       }
       groupGeofenceCircleRef.current = null;
@@ -1073,11 +1397,13 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
         { lat: m.position.lat, lng: m.position.lng },
         { lat: center.lat, lng: center.lng }
       );
-      const isForcedOutside = forcedOutsideMemberIdRef.current && m.id === forcedOutsideMemberIdRef.current;
+      const isForcedOutside =
+        forcedOutsideMemberIdRef.current &&
+        m.id === forcedOutsideMemberIdRef.current;
       if (dist > radius || isForcedOutside) {
         newlyOutside.add(m.id);
         if (!lastOutsideSetRef.current.has(m.id) && !breachName) {
-          breachName = m.name || 'Member';
+          breachName = m.name || "Member";
           breachId = m.id;
         }
       }
@@ -1095,7 +1421,9 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
-    const selected = selectedMemberRef.current ? members.find(m => m.id === selectedMemberRef.current.id) : null;
+    const selected = selectedMemberRef.current
+      ? members.find((m) => m.id === selectedMemberRef.current.id)
+      : null;
     if (!selected) return;
     if (!userLocation) return;
     const userPos = L.latLng(userLocation.lat, userLocation.lng);
@@ -1110,18 +1438,28 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
     const checkMapCenterHint = () => {
       try {
-        const raw = localStorage.getItem('mapCenter');
+        const raw = localStorage.getItem("mapCenter");
         if (!raw) return;
         if (mapCenterHintHandledRef.current === raw) return;
-        const hint = JSON.parse(raw) as { lat: number; lng: number; ts?: number; source?: string } | null;
-        if (!hint || typeof hint.lat !== 'number' || typeof hint.lng !== 'number') return;
+        const hint = JSON.parse(raw) as {
+          lat: number;
+          lng: number;
+          ts?: number;
+          source?: string;
+        } | null;
+        if (
+          !hint ||
+          typeof hint.lat !== "number" ||
+          typeof hint.lng !== "number"
+        )
+          return;
         mapCenterHintHandledRef.current = raw;
         const latlng = L.latLng(hint.lat, hint.lng);
         map.flyTo(latlng, Math.max(map.getZoom(), 19));
         const highlight = L.circleMarker(latlng, {
           radius: 12,
-          color: '#ef4444',
-          fillColor: '#ef4444',
+          color: "#ef4444",
+          fillColor: "#ef4444",
           fillOpacity: 0.5,
           weight: 2,
         }).addTo(map);
@@ -1139,9 +1477,9 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     // initial check and on focus
     checkMapCenterHint();
     const onFocus = () => checkMapCenterHint();
-    window.addEventListener('focus', onFocus);
+    window.addEventListener("focus", onFocus);
     return () => {
-      window.removeEventListener('focus', onFocus);
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 
@@ -1149,7 +1487,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
-    if (mapMode === 'helpdesk' && helpdeskTarget) {
+    if (mapMode === "helpdesk" && helpdeskTarget) {
       // clear member markers
       for (const [, marker] of memberMarkersRef.current.entries()) {
         if (map.hasLayer(marker)) map.removeLayer(marker);
@@ -1160,15 +1498,20 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
       if (helpdeskMarkerRef.current) {
         helpdeskMarkerRef.current.setLatLng(latlng);
       } else {
-        const marker = L.marker(latlng, { icon: buildHelpdeskIcon() }).addTo(map);
+        const marker = L.marker(latlng, { icon: buildHelpdeskIcon() }).addTo(
+          map
+        );
         helpdeskMarkerRef.current = marker;
-        marker.on('click', () => {
+        marker.on("click", () => {
           if (!userLocation) {
-            toast.error('Location not available');
+            toast.error("Location not available");
             return;
           }
           // clear any existing main routing elements when clicking on helpdesk marker
-          if (fallbackRouteLineRef.current && map.hasLayer(fallbackRouteLineRef.current)) {
+          if (
+            fallbackRouteLineRef.current &&
+            map.hasLayer(fallbackRouteLineRef.current)
+          ) {
             map.removeLayer(fallbackRouteLineRef.current);
             fallbackRouteLineRef.current = null;
           }
@@ -1176,7 +1519,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
             map.closePopup(fallbackRoutePopupRef.current);
             fallbackRoutePopupRef.current = null;
           }
-          if (osrmRoutingControlRef.current && map.hasLayer(osrmRoutingControlRef.current)) {
+          if (
+            osrmRoutingControlRef.current &&
+            map.hasLayer(osrmRoutingControlRef.current)
+          ) {
             map.removeControl(osrmRoutingControlRef.current);
             osrmRoutingControlRef.current = null;
           }
@@ -1190,9 +1536,16 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
           const createOrUpdateHelpdeskRouting = () => {
             if (helpdeskRoutingControlRef.current) {
-              helpdeskRoutingControlRef.current.setWaypoints([userPos, targetPos]);
+              helpdeskRoutingControlRef.current.setWaypoints([
+                userPos,
+                targetPos,
+              ]);
             } else {
-              const osrmRouter = (L as any).Routing?.OSRMv1 ? new (L as any).Routing.OSRMv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }) : undefined;
+              const osrmRouter = (L as any).Routing?.OSRMv1
+                ? new (L as any).Routing.OSRMv1({
+                    serviceUrl: "https://router.project-osrm.org/route/v1",
+                  })
+                : undefined;
               helpdeskRoutingControlRef.current = (L as any).Routing.control({
                 waypoints: [userPos, targetPos],
                 router: osrmRouter,
@@ -1201,34 +1554,56 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
                 fitSelectedRoutes: true,
                 show: false,
                 showAlternatives: true,
-                lineOptions: { styles: [{ color: '#2563eb', weight: 5, opacity: 0.9 }] },
-                altLineOptions: { styles: [{ color: '#9ca3af', weight: 4, opacity: 0.6, dashArray: '6,8' }] },
+                lineOptions: {
+                  styles: [{ color: "#2563eb", weight: 5, opacity: 0.9 }],
+                },
+                altLineOptions: {
+                  styles: [
+                    {
+                      color: "#9ca3af",
+                      weight: 4,
+                      opacity: 0.6,
+                      dashArray: "6,8",
+                    },
+                  ],
+                },
                 createMarker: () => null,
               })
-              .on('routesfound', (e: any) => {
-                const route = e.routes?.[0];
-                if (!route) return;
-                const distKm = (route.summary.totalDistance / 1000).toFixed(2);
-                const etaMin = Math.round(route.summary.totalTime / 60);
-                const midIndex = Math.floor(route.coordinates.length / 2);
-                const mid = route.coordinates[midIndex];
-                if (helpdeskPolylineRef.current && map.hasLayer(helpdeskPolylineRef.current)) {
-                  map.removeLayer(helpdeskPolylineRef.current);
-                }
-                if (!helpdeskRoutePopupRef.current) helpdeskRoutePopupRef.current = L.popup();
-                helpdeskRoutePopupRef.current
-                  .setLatLng([mid.lat, mid.lng])
-                  .setContent(`<div><strong>${distKm} km</strong> • ${etaMin} min</div>`)
-                  .openOn(map);
-              })
-              .on('routingerror', () => {
-                // OSRM failed, draw fallback polyline
-                drawHelpdeskFallbackRoute();
-              })
-              .addTo(map);
+                .on("routesfound", (e: any) => {
+                  const route = e.routes?.[0];
+                  if (!route) return;
+                  const distKm = (route.summary.totalDistance / 1000).toFixed(
+                    2
+                  );
+                  const etaMin = Math.round(route.summary.totalTime / 60);
+                  const midIndex = Math.floor(route.coordinates.length / 2);
+                  const mid = route.coordinates[midIndex];
+                  if (
+                    helpdeskPolylineRef.current &&
+                    map.hasLayer(helpdeskPolylineRef.current)
+                  ) {
+                    map.removeLayer(helpdeskPolylineRef.current);
+                  }
+                  if (!helpdeskRoutePopupRef.current)
+                    helpdeskRoutePopupRef.current = L.popup();
+                  helpdeskRoutePopupRef.current
+                    .setLatLng([mid.lat, mid.lng])
+                    .setContent(
+                      `<div><strong>${distKm} km</strong> • ${etaMin} min</div>`
+                    )
+                    .openOn(map);
+                })
+                .on("routingerror", () => {
+                  // OSRM failed, draw fallback polyline
+                  drawHelpdeskFallbackRoute();
+                })
+                .addTo(map);
             }
             // Ensure fallback helpdesk polyline is removed if OSRM control is active or successfully created
-            if (helpdeskPolylineRef.current && map.hasLayer(helpdeskPolylineRef.current)) {
+            if (
+              helpdeskPolylineRef.current &&
+              map.hasLayer(helpdeskPolylineRef.current)
+            ) {
               map.removeLayer(helpdeskPolylineRef.current);
             }
             if (helpdeskRoutePopupRef.current) {
@@ -1239,23 +1614,40 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
           const drawHelpdeskFallbackRoute = () => {
             // Ensure helpdesk OSRM control and its popup are removed if fallback is drawn
-            if (helpdeskRoutingControlRef.current && map.hasLayer(helpdeskRoutingControlRef.current)) {
+            if (
+              helpdeskRoutingControlRef.current &&
+              map.hasLayer(helpdeskRoutingControlRef.current)
+            ) {
               map.removeControl(helpdeskRoutingControlRef.current);
               helpdeskRoutingControlRef.current = null;
             }
             if (!helpdeskPolylineRef.current) {
-              helpdeskPolylineRef.current = L.polyline([userPos, targetPos], { color: '#2563eb', weight: 5, opacity: 0.9, renderer: L.canvas() }).addTo(map);
+              helpdeskPolylineRef.current = L.polyline([userPos, targetPos], {
+                color: "#2563eb",
+                weight: 5,
+                opacity: 0.9,
+                renderer: L.canvas(),
+              }).addTo(map);
             } else {
               helpdeskPolylineRef.current.setLatLngs([userPos, targetPos]);
-              if (!map.hasLayer(helpdeskPolylineRef.current)) map.addLayer(helpdeskPolylineRef.current);
+              if (!map.hasLayer(helpdeskPolylineRef.current))
+                map.addLayer(helpdeskPolylineRef.current);
             }
             const distM = map.distance(userPos, targetPos);
-            const etaMin = Math.round((distM / 1.4) / 60);
-            const mid = L.latLng((userPos.lat + targetPos.lat) / 2, (userPos.lng + targetPos.lng) / 2);
-            if (!helpdeskRoutePopupRef.current) helpdeskRoutePopupRef.current = L.popup();
+            const etaMin = Math.round(distM / 1.4 / 60);
+            const mid = L.latLng(
+              (userPos.lat + targetPos.lat) / 2,
+              (userPos.lng + targetPos.lng) / 2
+            );
+            if (!helpdeskRoutePopupRef.current)
+              helpdeskRoutePopupRef.current = L.popup();
             helpdeskRoutePopupRef.current
               .setLatLng(mid)
-              .setContent(`<div><strong>${(distM / 1000).toFixed(2)} km</strong> • ${etaMin} min</div>`)
+              .setContent(
+                `<div><strong>${(distM / 1000).toFixed(
+                  2
+                )} km</strong> • ${etaMin} min</div>`
+              )
               .openOn(map);
           };
 
@@ -1269,7 +1661,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
       // Auto-draw route immediately (live like member path)
       if (userLocation) {
         // clear existing main routing if any
-        if (osrmRoutingControlRef.current && map.hasLayer(osrmRoutingControlRef.current)) {
+        if (
+          osrmRoutingControlRef.current &&
+          map.hasLayer(osrmRoutingControlRef.current)
+        ) {
           map.removeControl(osrmRoutingControlRef.current);
           osrmRoutingControlRef.current = null;
         }
@@ -1277,7 +1672,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           map.closePopup(routePopupRef.current);
           routePopupRef.current = null;
         }
-        if (fallbackRouteLineRef.current && map.hasLayer(fallbackRouteLineRef.current)) {
+        if (
+          fallbackRouteLineRef.current &&
+          map.hasLayer(fallbackRouteLineRef.current)
+        ) {
           map.removeLayer(fallbackRouteLineRef.current);
           fallbackRouteLineRef.current = null;
         }
@@ -1287,7 +1685,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
         }
 
         // clear existing helpdesk routing if any to re-draw
-        if (helpdeskRoutingControlRef.current && map.hasLayer(helpdeskRoutingControlRef.current)) {
+        if (
+          helpdeskRoutingControlRef.current &&
+          map.hasLayer(helpdeskRoutingControlRef.current)
+        ) {
           map.removeControl(helpdeskRoutingControlRef.current);
           helpdeskRoutingControlRef.current = null;
         }
@@ -1295,7 +1696,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           map.closePopup(helpdeskRoutePopupRef.current);
           helpdeskRoutePopupRef.current = null;
         }
-        if (helpdeskPolylineRef.current && map.hasLayer(helpdeskPolylineRef.current)) {
+        if (
+          helpdeskPolylineRef.current &&
+          map.hasLayer(helpdeskPolylineRef.current)
+        ) {
           map.removeLayer(helpdeskPolylineRef.current);
           helpdeskPolylineRef.current = null;
         }
@@ -1303,7 +1707,11 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
         const userPos = L.latLng(userLocation.lat, userLocation.lng);
         const targetPos = L.latLng(latlng[0], latlng[1]);
 
-        const osrmRouter = (L as any).Routing?.OSRMv1 ? new (L as any).Routing.OSRMv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }) : undefined;
+        const osrmRouter = (L as any).Routing?.OSRMv1
+          ? new (L as any).Routing.OSRMv1({
+              serviceUrl: "https://router.project-osrm.org/route/v1",
+            })
+          : undefined;
         const control = (L as any).Routing.control({
           waypoints: [userPos, targetPos],
           router: osrmRouter,
@@ -1312,61 +1720,99 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
           fitSelectedRoutes: true,
           show: false,
           showAlternatives: true,
-          lineOptions: { styles: [{ color: '#2563eb', weight: 5, opacity: 0.9 }] },
-          altLineOptions: { styles: [{ color: '#9ca3af', weight: 4, opacity: 0.6, dashArray: '6,8' }] },
+          lineOptions: {
+            styles: [{ color: "#2563eb", weight: 5, opacity: 0.9 }],
+          },
+          altLineOptions: {
+            styles: [
+              { color: "#9ca3af", weight: 4, opacity: 0.6, dashArray: "6,8" },
+            ],
+          },
           createMarker: () => null,
         })
-        .on('routesfound', (e: any) => {
-          const route = e.routes?.[0];
-          if (!route) return;
-          const distKm = (route.summary.totalDistance / 1000).toFixed(2);
-          const etaMin = Math.round(route.summary.totalTime / 60);
-          const midIndex = Math.floor(route.coordinates.length / 2);
-          const mid = route.coordinates[midIndex];
-          if (helpdeskPolylineRef.current && map.hasLayer(helpdeskPolylineRef.current)) {
-            map.removeLayer(helpdeskPolylineRef.current);
-          }
-          if (!helpdeskRoutePopupRef.current) helpdeskRoutePopupRef.current = L.popup();
-          helpdeskRoutePopupRef.current
-            .setLatLng([mid.lat, mid.lng])
-            .setContent(`<div><strong>${distKm} km</strong> • ${etaMin} min</div>`)
-            .openOn(map);
-        })
-        .on('routingerror', () => {
-          // OSRM failed, draw fallback polyline
-          if (helpdeskRoutingControlRef.current && map.hasLayer(helpdeskRoutingControlRef.current)) {
-            map.removeControl(helpdeskRoutingControlRef.current);
-            helpdeskRoutingControlRef.current = null;
-          }
-          const fallbackDistM = map.distance(userPos, targetPos);
-          const fallbackEtaMin = Math.round((fallbackDistM / 1.4) / 60);
-          const fallbackMid = L.latLng((userPos.lat + targetPos.lat) / 2, (userPos.lng + targetPos.lng) / 2);
-          if (!helpdeskPolylineRef.current) {
-            helpdeskPolylineRef.current = L.polyline([userPos, targetPos], { color: '#2563eb', weight: 5, opacity: 0.9, renderer: L.canvas() }).addTo(map);
-          } else {
-            helpdeskPolylineRef.current.setLatLngs([userPos, targetPos]);
-            if (!map.hasLayer(helpdeskPolylineRef.current)) map.addLayer(helpdeskPolylineRef.current);
-          }
-          if (!helpdeskRoutePopupRef.current) helpdeskRoutePopupRef.current = L.popup();
-          helpdeskRoutePopupRef.current
-            .setLatLng(fallbackMid)
-            .setContent(`<div><strong>${(fallbackDistM / 1000).toFixed(2)} km</strong> • ${fallbackEtaMin} min</div>`)
-            .openOn(map);
-        })
-        .addTo(map);
+          .on("routesfound", (e: any) => {
+            const route = e.routes?.[0];
+            if (!route) return;
+            const distKm = (route.summary.totalDistance / 1000).toFixed(2);
+            const etaMin = Math.round(route.summary.totalTime / 60);
+            const midIndex = Math.floor(route.coordinates.length / 2);
+            const mid = route.coordinates[midIndex];
+            if (
+              helpdeskPolylineRef.current &&
+              map.hasLayer(helpdeskPolylineRef.current)
+            ) {
+              map.removeLayer(helpdeskPolylineRef.current);
+            }
+            if (!helpdeskRoutePopupRef.current)
+              helpdeskRoutePopupRef.current = L.popup();
+            helpdeskRoutePopupRef.current
+              .setLatLng([mid.lat, mid.lng])
+              .setContent(
+                `<div><strong>${distKm} km</strong> • ${etaMin} min</div>`
+              )
+              .openOn(map);
+          })
+          .on("routingerror", () => {
+            // OSRM failed, draw fallback polyline
+            if (
+              helpdeskRoutingControlRef.current &&
+              map.hasLayer(helpdeskRoutingControlRef.current)
+            ) {
+              map.removeControl(helpdeskRoutingControlRef.current);
+              helpdeskRoutingControlRef.current = null;
+            }
+            const fallbackDistM = map.distance(userPos, targetPos);
+            const fallbackEtaMin = Math.round(fallbackDistM / 1.4 / 60);
+            const fallbackMid = L.latLng(
+              (userPos.lat + targetPos.lat) / 2,
+              (userPos.lng + targetPos.lng) / 2
+            );
+            if (!helpdeskPolylineRef.current) {
+              helpdeskPolylineRef.current = L.polyline([userPos, targetPos], {
+                color: "#2563eb",
+                weight: 5,
+                opacity: 0.9,
+                renderer: L.canvas(),
+              }).addTo(map);
+            } else {
+              helpdeskPolylineRef.current.setLatLngs([userPos, targetPos]);
+              if (!map.hasLayer(helpdeskPolylineRef.current))
+                map.addLayer(helpdeskPolylineRef.current);
+            }
+            if (!helpdeskRoutePopupRef.current)
+              helpdeskRoutePopupRef.current = L.popup();
+            helpdeskRoutePopupRef.current
+              .setLatLng(fallbackMid)
+              .setContent(
+                `<div><strong>${(fallbackDistM / 1000).toFixed(
+                  2
+                )} km</strong> • ${fallbackEtaMin} min</div>`
+              )
+              .openOn(map);
+          })
+          .addTo(map);
         helpdeskRoutingControlRef.current = control;
       }
     } else {
       // leaving helpdesk mode -> remove helpdesk marker and any routes/popups
-      if (helpdeskMarkerRef.current && map.hasLayer(helpdeskMarkerRef.current)) {
+      if (
+        helpdeskMarkerRef.current &&
+        map.hasLayer(helpdeskMarkerRef.current)
+      ) {
         map.removeLayer(helpdeskMarkerRef.current);
         helpdeskMarkerRef.current = null;
       }
-      if (helpdeskPolylineRef.current && map.hasLayer(helpdeskPolylineRef.current)) {
+      if (
+        helpdeskPolylineRef.current &&
+        map.hasLayer(helpdeskPolylineRef.current)
+      ) {
         map.removeLayer(helpdeskPolylineRef.current);
         helpdeskPolylineRef.current = null;
       }
-      if (helpdeskRoutingControlRef.current && map.hasLayer(helpdeskRoutingControlRef.current)) {
+      if (
+        helpdeskRoutingControlRef.current &&
+        map.hasLayer(helpdeskRoutingControlRef.current)
+      ) {
         map.removeControl(helpdeskRoutingControlRef.current);
         helpdeskRoutingControlRef.current = null;
       }
@@ -1375,7 +1821,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
         helpdeskRoutePopupRef.current = null;
       }
       // Also clear main routing controls when leaving helpdesk mode
-      if (osrmRoutingControlRef.current && map.hasLayer(osrmRoutingControlRef.current)) {
+      if (
+        osrmRoutingControlRef.current &&
+        map.hasLayer(osrmRoutingControlRef.current)
+      ) {
         map.removeControl(osrmRoutingControlRef.current);
         osrmRoutingControlRef.current = null;
       }
@@ -1383,7 +1832,10 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
         map.closePopup(routePopupRef.current);
         routePopupRef.current = null;
       }
-      if (fallbackRouteLineRef.current && map.hasLayer(fallbackRouteLineRef.current)) {
+      if (
+        fallbackRouteLineRef.current &&
+        map.hasLayer(fallbackRouteLineRef.current)
+      ) {
         map.removeLayer(fallbackRouteLineRef.current);
         fallbackRouteLineRef.current = null;
       }
@@ -1397,7 +1849,7 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
   // Live update the helpdesk route as user moves
   useEffect(() => {
     if (!mapRef.current) return;
-    if (mapMode !== 'helpdesk' || !helpdeskTarget) return;
+    if (mapMode !== "helpdesk" || !helpdeskTarget) return;
     const map = mapRef.current;
     if (!userLocation) return;
     const userPos = L.latLng(userLocation.lat, userLocation.lng);
@@ -1407,8 +1859,6 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
     }
   }, [userLocation, mapMode, helpdeskTarget]);
 
-  
-
   // Focus/zoom to latest breaching member and highlight
   const handleViewGeofenceBreach = useCallback(() => {
     try {
@@ -1416,9 +1866,11 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
       if (!geofenceBreachMemberId) return;
       const map = mapRef.current;
       // ensure group mode to show members
-      setMapMode('groups');
+      setMapMode("groups");
 
-      const latest = members.find((m: GroupMember) => m.id === geofenceBreachMemberId);
+      const latest = members.find(
+        (m: GroupMember) => m.id === geofenceBreachMemberId
+      );
       if (!latest || !latest.position) return;
 
       const latlng = L.latLng(latest.position.lat, latest.position.lng);
@@ -1427,8 +1879,8 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
       // temporary highlight pulse
       const highlight = L.circleMarker(latlng, {
         radius: 12,
-        color: '#ef4444',
-        fillColor: '#ef4444',
+        color: "#ef4444",
+        fillColor: "#ef4444",
         fillOpacity: 0.45,
         weight: 2,
       }).addTo(map);
@@ -1447,172 +1899,276 @@ const USER_PATH_MAX_POINTS = 200; // cap to avoid unbounded growth
 
   return (
     <>
-    <div className="flex flex-col h-[87vh] bg-background">
-      {/* Status Panel */}
-      <div className="px-4 py-3 bg-card border-b border-card-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Users className="h-5 w-5 text-primary" />
-            <div>
-              <h2 className="font-semibold text-card-foreground">{t('groupStatus')}</h2>
-              <p className="text-sm text-muted-foreground">{members.length} {t('members')}</p>
+      <div className="flex flex-col h-[87vh] bg-background">
+        {/* Status Panel */}
+        <div className="px-4 py-3 bg-card border-b border-card-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Users className="h-5 w-5 text-primary" />
+              <div>
+                <h2 className="font-semibold text-card-foreground">
+                  {t("groupStatus")}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {members.length} {t("members")}
+                </p>
+              </div>
             </div>
+            <StatusIndicator status={groupStatus} />
           </div>
-          <StatusIndicator status={groupStatus} />
         </div>
-      </div>
 
-      {/* Geofence Alert */}
-      {showGeofenceAlert && (
-        <div className="p-4">
-          <Alert className="border-warning bg-warning/10">
-            <AlertCircle className="h-4 w-4 text-warning" />
-            <AlertDescription className="text-warning">
-              {(geofenceBreachName || 'Member')} {t('safe')} क्षेत्र से बाहर गए हैं
-              <Button
-                variant="outline"
-                size="sm"
-                className="ml-2 h-6 px-2 text-xs border-warning text-warning hover:bg-warning hover:text-warning-foreground"
-                onClick={handleViewGeofenceBreach}
-              >
-                {t('viewMap')}
-              </Button>
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-
-      {/* Leaflet Map */}
-      <div className="flex-1 z-[1]">
-        {/* Selected member history panel */}
-        {selectedMember && selectedMember.path && (
-          <div className="absolute top-4 right-4 z-[999] bg-card border border-card-border rounded-md shadow-medium max-w-[260px]">
-            <div className="p-3 border-b border-card-border font-medium">{selectedMember.name} - Recent locations</div>
-            <div className="p-3 max-h-48 overflow-auto space-y-2 text-sm">
-              {[...selectedMember.path].slice(-10).reverse().map((p: MemberPathPoint, idx: number) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <span>{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(p.ts).toLocaleTimeString()}</span>
-                </div>
-              ))}
-            </div>
+        {/* Geofence Alert */}
+        {showGeofenceAlert && (
+          <div className="p-4">
+            <Alert className="border-warning bg-warning/10">
+              <AlertCircle className="h-4 w-4 text-warning" />
+              <AlertDescription className="text-warning">
+                {geofenceBreachName || "Member"} {t("safe")} क्षेत्र से बाहर गए
+                हैं
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-2 h-6 px-2 text-xs border-warning text-warning hover:bg-warning hover:text-warning-foreground"
+                  onClick={handleViewGeofenceBreach}
+                >
+                  {t("viewMap")}
+                </Button>
+              </AlertDescription>
+            </Alert>
           </div>
         )}
-        <div className="absolute bottom-[11rem] right-[10%] translate-x-1/2 z-[999]">
-          <Button
-            variant="default"
-            size="sm"
-            className="p-2 rounded-full shadow-md bg-[white] w-[51px] h-[51px] hover:bg-[white]"
-            onClick={handleLocate}
-          >
-            <Locate className='!w-[50px] !h-[50px] text-blue-600' strokeWidth={2.25} />
-          </Button>
-        </div>
 
-        <MapContainer
-          center={[23.1765, 75.7884]}
-          zoom={16}
-          className="h-full w-full"
-          preferCanvas={true}
-          wheelDebounceTime={35}
-          wheelPxPerZoomLevel={80}
-          zoomAnimation={true}
-          markerZoomAnimation={true}
-          touchZoom={true}
-          tapTolerance={15}
-          ref={(instance) => {
-            if (instance) {
-              mapRef.current = (instance as unknown as L.Map);
-            }
-          }}
-        >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        </MapContainer>
-      </div>
-      <div className="p-4 bg-card border-t border-card-border">
-        <div className="flex gap-3">
-          <Button variant="outline" className="flex-1 h-12 text-primary border-primary hover:bg-primary hover:text-primary-foreground" onClick={() => { setMapMode('groups'); handleFocusGroup(); }}>
-            <Navigation className="h-5 w-5 mr-2" />
-            {t('focusOnGroup')}
-          </Button>
-          
-          <div className="relative">
-            <Button
-              ref={infoButtonRef as any}
-              variant="outline"
-              className="h-12 px-4"
-              aria-label="Group info"
-              aria-haspopup="dialog"
-              aria-expanded={showInfoPanel}
-              aria-controls="group-info-panel"
-              onClick={() => setShowInfoPanel((v) => !v)}
-            >
-              <Info className="h-5 w-5" />
-            </Button>
-            {showInfoPanel && (
-              <div
-                id="group-info-panel"
-                ref={infoPanelRef}
-                role="dialog"
-                aria-modal="false"
-                aria-label="Group information"
-                className="absolute bottom-[3.5rem] right-0 z-[1000] bg-card border border-card-border rounded-md shadow-medium w-[90vw] max-w-[320px]"
-              >
-                <div className="p-3 border-b border-card-border flex items-center justify-between">
-                  <div className="font-medium">{t('groupStatus')}</div>
-                  <StatusIndicator status={groupStatus} />
+        {/* Leaflet Map */}
+        <div className="flex-1 z-[1]">
+          {/* Selected member history panel */}
+          {selectedMember && selectedMember.path && (
+            <div className="absolute top-4 right-4 z-[999] bg-card border border-card-border rounded-md shadow-medium max-w-[280px]">
+              <div className="p-3 border-b border-card-border flex items-center justify-between">
+                <div className="font-medium text-sm">
+                  {selectedMember.name} - Recent locations
                 </div>
-                <div className="p-3 space-y-2 text-sm" aria-live="polite">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{t('members')}</span>
-                    <span className="font-medium">{totalCount}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Safe</span>
-                    <span className="font-medium text-green-600">{safeCount}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Alert</span>
-                    <span className="font-medium text-red-600">{alertCount}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Last updated</span>
-                    <span className="font-medium">{lastUpdatedTs ? new Date(lastUpdatedTs).toLocaleTimeString() : '—'}</span>
-                  </div>
-                  <div className="pt-2 border-t border-card-border">
-                    <div className="font-medium mb-2">Legend</div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1">
-                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-blue-600" aria-hidden="true" />
-                        <span className="sr-only">You marker color</span>
-                        <span className="text-muted-foreground">You</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 hover:bg-muted"
+                  onClick={() => setSelectedMember(null)}
+                  aria-label="Close member panel"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </Button>
+              </div>
+              <div className="p-3 max-h-48 overflow-auto space-y-2 text-sm">
+                {[...selectedMember.path]
+                  .slice(-10)
+                  .reverse()
+                  .map((p: MemberPathPoint, idx: number) => {
+                    // Get location name or use coordinates
+                    const locationName =
+                      (p as any).locationName || `Location ${idx + 1}`;
+                    const isLastLocation = idx === 0;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-start justify-between p-2 rounded-md ${
+                          isLastLocation
+                            ? "bg-primary/10 border border-primary/20"
+                            : "hover:bg-muted/50"
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-xs text-primary mb-1">
+                            {isLastLocation
+                              ? "📍 Current Location"
+                              : `📍 ${locationName}`}
+                          </div>
+                          <div className="text-xs text-muted-foreground font-mono">
+                            {p.lat.toFixed(5)}, {p.lng.toFixed(5)}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground ml-2 flex-shrink-0">
+                          {new Date(p.ts).toLocaleTimeString()}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-600" aria-hidden="true" />
-                        <span className="sr-only">Group member marker color</span>
-                        <span className="text-muted-foreground">Group</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-600" aria-hidden="true" />
-                        <span className="sr-only">SOS/alert marker color</span>
-                        <span className="text-muted-foreground">SOS</span>
+                    );
+                  })}
+              </div>
+              <div className="p-2 border-t border-card-border bg-muted/30">
+                <div className="text-xs text-muted-foreground text-center">
+                  Click on map to close • {selectedMember.path.length} total
+                  locations
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="absolute bottom-[11rem] right-[10%] translate-x-1/2 z-[999]">
+            <Button
+              variant="default"
+              size="sm"
+              className="p-2 rounded-full shadow-md bg-[white] w-[51px] h-[51px] hover:bg-[white]"
+              onClick={handleLocate}
+            >
+              <Locate
+                className="!w-[50px] !h-[50px] text-blue-600"
+                strokeWidth={2.25}
+              />
+            </Button>
+          </div>
+
+          <MapContainer
+            center={[23.1765, 75.7884]}
+            zoom={16}
+            className="h-full w-full"
+            preferCanvas={true}
+            wheelDebounceTime={35}
+            wheelPxPerZoomLevel={80}
+            zoomAnimation={true}
+            markerZoomAnimation={true}
+            touchZoom={true}
+            tapTolerance={15}
+            ref={(instance) => {
+              if (instance) {
+                mapRef.current = instance as unknown as L.Map;
+              }
+            }}
+          >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          </MapContainer>
+        </div>
+        <div className="p-4 bg-card border-t border-card-border">
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1 h-12 text-primary border-primary hover:bg-primary hover:text-primary-foreground"
+              onClick={() => {
+                setMapMode("groups");
+                handleFocusGroup();
+              }}
+            >
+              <Navigation className="h-5 w-5 mr-2" />
+              {t("focusOnGroup")}
+            </Button>
+
+            <div className="relative">
+              <Button
+                ref={infoButtonRef as any}
+                variant="outline"
+                className="h-12 px-4"
+                aria-label="Group info"
+                aria-haspopup="dialog"
+                aria-expanded={showInfoPanel}
+                aria-controls="group-info-panel"
+                onClick={() => setShowInfoPanel((v) => !v)}
+              >
+                <Info className="h-5 w-5" />
+              </Button>
+              {showInfoPanel && (
+                <div
+                  id="group-info-panel"
+                  ref={infoPanelRef}
+                  role="dialog"
+                  aria-modal="false"
+                  aria-label="Group information"
+                  className="absolute bottom-[3.5rem] right-0 z-[1000] bg-card border border-card-border rounded-md shadow-medium w-[90vw] max-w-[320px]"
+                >
+                  <div className="p-3 border-b border-card-border flex items-center justify-between">
+                    <div className="font-medium">{t("groupStatus")}</div>
+                    <StatusIndicator status={groupStatus} />
+                  </div>
+                  <div className="p-3 space-y-2 text-sm" aria-live="polite">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">
+                        {t("members")}
+                      </span>
+                      <span className="font-medium">{totalCount}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Safe</span>
+                      <span className="font-medium text-green-600">
+                        {safeCount}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Alert</span>
+                      <span className="font-medium text-red-600">
+                        {alertCount}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">
+                        Last updated
+                      </span>
+                      <span className="font-medium">
+                        {lastUpdatedTs
+                          ? new Date(lastUpdatedTs).toLocaleTimeString()
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="pt-2 border-t border-card-border">
+                      <div className="font-medium mb-2">Legend</div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <span
+                            className="inline-block w-2.5 h-2.5 rounded-sm bg-blue-600"
+                            aria-hidden="true"
+                          />
+                          <span className="sr-only">You marker color</span>
+                          <span className="text-muted-foreground">You</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span
+                            className="inline-block w-2.5 h-2.5 rounded-sm bg-green-600"
+                            aria-hidden="true"
+                          />
+                          <span className="sr-only">
+                            Group member marker color
+                          </span>
+                          <span className="text-muted-foreground">Group</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span
+                            className="inline-block w-2.5 h-2.5 rounded-sm bg-red-600"
+                            aria-hidden="true"
+                          />
+                          <span className="sr-only">
+                            SOS/alert marker color
+                          </span>
+                          <span className="text-muted-foreground">SOS</span>
+                        </div>
                       </div>
                     </div>
                   </div>
+                  <div className="p-2 border-t border-card-border flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowInfoPanel(false)}
+                      aria-label="Close info panel"
+                    >
+                      Close
+                    </Button>
+                  </div>
                 </div>
-                <div className="p-2 border-t border-card-border flex justify-end">
-                  <Button variant="ghost" size="sm" onClick={() => setShowInfoPanel(false)} aria-label="Close info panel">Close</Button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-          
         </div>
+        {/* Bottom Actions */}
       </div>
-      {/* Bottom Actions */}
-    </div>
-   
-  </>
+    </>
   );
 };
 
