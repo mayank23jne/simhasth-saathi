@@ -11,6 +11,8 @@ import { useTranslation } from "@/context/TranslationContext";
 import { useNavigate } from "react-router-dom";
 import BarcodeScanner from "react-qr-barcode-scanner";
 import { tryParseQR } from "@/lib/qr";
+import { authService } from "@/services/authService";
+import { useAppStore } from "@/store/appStore";
 
 interface QRScannerProps {
   isOpen: boolean;
@@ -134,11 +136,36 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           if (navigator.vibrate) navigator.vibrate(15);
         } catch {}
         toast.success("QR स्कैन हुआ");
-        close();
-        // Navigate to landing page with scan data
-        console.log("QRScanner - Navigating to /qr-result with data:", mapped);
-        navigate("/qr-result", { state: { scanData: mapped } });
-        onScanResult(mapped);
+        console.info(mapped,"mapped 123456")
+        // Special case: group invite → join existing group, navigate only on success
+        if (mapped.type === "group_invite" && mapped.groupCode) {
+          (async () => {
+            try {
+              const code = String(mapped.groupCode) || localStorage.getItem("groupCode") || "";
+              const userId = (
+                localStorage.getItem("userId") || useAppStore.getState().userId || ""
+              ).toString();
+              if (!userId) throw new Error("Not logged in");
+              await authService.joinExistingGroup({ userId, groupId: code });
+              try {
+                useAppStore.getState().setGroup(code);
+              } catch {}
+              onScanResult(mapped);
+              navigate("/dashboard");
+            } catch (e: any) {
+              console.error("joinExistingGroup failed:", e);
+              toast.error(e?.message || "Failed to join group");
+            } finally {
+              close();
+            }
+          })();
+        } else {
+          // Default behavior for other QR kinds
+          console.log("QRScanner - Navigating to /qr-result with data:", mapped);
+          close();
+          navigate("/qr-result", { state: { scanData: mapped } });
+          onScanResult(mapped);
+        }
       } else {
         console.log("QRScanner - Raw text:", text);
         // Fallback: pass raw text if not mapped
@@ -204,9 +231,31 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 if (navigator.vibrate) navigator.vibrate(15);
               } catch {}
               toast.success("QR स्कैन हुआ");
-              close();
-              navigate("/qr-result", { state: { scanData: mapped } });
-              onScanResult(mapped);
+              console.info(mapped,"mapped 123456  789456")
+              if (mapped.type === "group_invite" && mapped.groupCode) {
+                try {
+                  const code = String(mapped.groupCode) || localStorage.getItem("groupCode") || "";
+                  const userId = (
+                    localStorage.getItem("userId") || useAppStore.getState().userId || ""
+                  ).toString();
+                  if (!userId) throw new Error("Not logged in");
+                  await authService.joinExistingGroup({ userId, groupId: code });
+                  try {
+                    useAppStore.getState().setGroup(code);
+                  } catch {}
+                  onScanResult(mapped);
+                  navigate("/dashboard");
+                } catch (e: any) {
+                  console.error("joinExistingGroup failed:", e);
+                  toast.error(e?.message || "Failed to join group");
+                } finally {
+                  close();
+                }
+              } else {
+                close();
+                navigate("/qr-result", { state: { scanData: mapped } });
+                onScanResult(mapped);
+              }
             } else {
               console.log("QRScanner File - Raw text:", text);
               setHasScanned(true);

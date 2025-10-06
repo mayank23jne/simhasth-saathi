@@ -24,6 +24,11 @@ export interface CreateGroupPayload {
   adminId: string | number;
 }
 
+export interface JoinExistingGroupPayload {
+  userId: string;
+  groupId: string;
+}
+
 export interface AuthResponse {
 	userId: string;
 	userType: 'admin' | 'member';
@@ -34,6 +39,52 @@ export interface AuthResponse {
 	data?: {
 		userId?: string;
 	};
+}
+
+// Normalized helpers for dynamic API responses
+export interface NormalizedUser {
+	id: string;
+	fullName: string;
+	mobileNumber: string;
+	age?: number;
+	groupId?: string | null;
+	isAdmin: boolean;
+}
+
+export interface NormalizedLoginData {
+	token: string | null;
+	user: NormalizedUser | null;
+	groupMembers: NormalizedUser[];
+}
+
+export function normalizeAuthData(res: any): NormalizedLoginData {
+	const data = res?.data ?? res ?? {};
+	const rawUser = data.user ?? data.User ?? {};
+	const token = (data.token ?? res?.token ?? null) as string | null;
+
+	const normalizeUser = (u: any): NormalizedUser | null => {
+		if (!u) return null;
+		const id = u.id ?? u.userId ?? u.user_id;
+		if (id == null) return null;
+		return {
+			id: String(id),
+			fullName: u.fullName ?? u.full_name ?? u.name ?? '',
+			mobileNumber: u.mobileNumber ?? u.mobile_number ?? u.phone ?? '',
+			age: u.age ?? u.Age,
+			groupId: u.groupId ?? u.group_id ?? null,
+			isAdmin: Boolean(u.isAdmin ?? u.is_admin ?? false),
+		};
+	};
+
+	const user = normalizeUser(rawUser);
+	const membersRaw: any[] = Array.isArray(data.groupMembers)
+		? data.groupMembers
+		: (Array.isArray(data.group_members) ? data.group_members : []);
+	const groupMembers = membersRaw
+		.map((m) => normalizeUser(m))
+		.filter((m): m is NormalizedUser => !!m);
+
+	return { token, user, groupMembers };
 }
 
 export const authService = {
@@ -67,11 +118,10 @@ export const authService = {
 			body: payload,
 			noAuth: true,
 		});
-		// If backend returns token on login, persist it
-		const token = (res as any)?.data?.token as string | undefined;
-		const user = (res as any)?.data?.user as { id?: string | number; isAdmin?: boolean } | undefined;
-		if (token && user?.id != null) {
-			setAuth(token, user?.isAdmin ? 'admin' : 'member', { userId: String(user.id) });
+		// Persist auth if token is present in the new response shape
+		const norm = normalizeAuthData(res);
+		if (norm.token && norm.user?.id) {
+			setAuth(norm.token, norm.user.isAdmin ? 'admin' : 'member', { userId: norm.user.id });
 		}
 		return res;
 	},
@@ -112,6 +162,35 @@ export const authService = {
 			body: payload,
 		});
 	},
+
+  async joinExistingGroup(payload: JoinExistingGroupPayload): Promise<any> {
+    // Authenticated endpoint to join an existing group
+    return await apiFetch('/api/auth/join-existing-group', {
+      method: 'POST',
+      body: payload,
+    });
+  },
+
+  async getGroupMembers(payload: { groupId: string }): Promise<any[]> {
+  const res = await apiFetch('/api/auth/get-group-users', {
+    method: 'POST',
+    body: payload,
+  });
+
+  // Normalize many possible shapes and always return an array
+  const maybe = res?.data ?? res ?? {};
+  console.info('raw service response', res);
+  // If the top-level value is already an array, return it
+  if (Array.isArray(maybe)) return maybe;
+  // Common nested shapes:
+  if (Array.isArray(maybe.group_members)) return maybe.group_members;
+  if (Array.isArray(maybe.groupMembers)) return maybe.groupMembers;
+  if (Array.isArray(maybe.data)) return maybe.data;
+  // Fallback: if response itself had data that is array (res.data.data)
+  if (Array.isArray(res?.data?.data)) return res.data.data;
+  // Otherwise return empty array
+  return [];
+}
 };
 
 export type AuthService = typeof authService;

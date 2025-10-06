@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ArrowRight, Phone, Shield, UserCheck } from 'lucide-react';
 import { useTranslation } from '@/context/TranslationContext';
-import { authService } from '@/services/authService';
+import { authService, normalizeAuthData } from '@/services/authService';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useGroupMembers } from '@/hooks/useGroupMembers';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -32,6 +33,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const otpSubtitle = t('otpSubtitle')?.replace('{phoneNumber}', phoneNumber) || '';
+  const groupCode = useAppStore(s => s.groupCode);
+  const { refresh: refreshMembers } = useGroupMembers(groupCode);
 
   const handleSendOtp = async () => {
     const parsedAge = Number(age);
@@ -43,14 +46,35 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       console.info('Sending OTP for', authMode);
       if (authMode === 'login') {
         const res = await authService.loginAdmin({ mobileNumber: phoneNumber });
-        setPendingUserId((res as any)?.data?.userId || (res as any)?.userId || null);
-        if (res?.success) {
-          navigate('/dashboard');
-        }
+        const norm = normalizeAuthData(res as any);
         console.info('Login Admin Response:', res);
-        // setStep('otp');
-        // toast.success('OTP sent');
-        // return;
+        if (res && (res as any).success) {
+          // Set basic user info from login response
+          try {
+            const user = norm.user;
+            if (user) {
+              if (user.fullName) localStorage.setItem('userName', user.fullName);
+              if (user.mobileNumber) localStorage.setItem('userPhone', user.mobileNumber);
+              if (user.age != null) localStorage.setItem('userAge', String(user.age));
+              setUserId(user.id);
+              setUserRole(user.isAdmin ? 'admin' : 'member');
+              if (user.groupId) setGroup(user.groupId);
+            }
+          } catch {}
+          
+          // Now fetch group members using the dedicated API
+          if (norm.user?.groupId) {
+            try {
+              await refreshMembers();
+            } catch (e) {
+              console.warn('Failed to fetch group members:', e);
+            }
+          }
+
+          toast.success('Login successful');
+          navigate('/dashboard');
+          return;
+        }
       } else {
         const reg = await authService.registerAdmin({ fullName: fullName.trim(), mobileNumber: phoneNumber, age: parsedAge });
         console.log('Register Admin Response:', reg);
@@ -59,10 +83,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           setStep('otp');
           toast.success('OTP sent');
         }
-        // const loginRes = await authService.loginAdmin({ mobileNumber: phoneNumber });
-
       }
-      // Register flow
     } catch (err: any) {
       toast.error(err?.message || 'Failed to send OTP');
     } finally {
@@ -78,15 +99,19 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     }
     setIsLoading(true);
     try {
-      console.info('Verifying OTP for user:', pendingUserId); 
+      console.info('Verifying OTP for user:', pendingUserId);
       const res = await authService.verifyOtp({ userId: pendingUserId, otp, userType: 'admin' });
+      const norm = normalizeAuthData(res as any);
       const data: any = (res as any)?.data || {};
-      const user: any = data.user || {};
-      const nextUserId = user?.id != null ? String(user.id) : (res as any)?.userId;
-      const nextName = user?.fullName || fullName.trim();
-      const nextPhone = user?.mobileNumber || phoneNumber;
-      const nextRole = user?.isAdmin ? 'admin' : 'member';
-      const nextGroup = user?.groupId != null ? String(user.groupId) : null;
+      const rawUser: any = data.user || data.User || {};
+      const user = norm.user || null;
+      const nextUserId = user?.id || rawUser?.id || rawUser?.userId || rawUser?.user_id || (res as any)?.userId || (res as any)?.user_id;
+      const nextName = (user?.fullName || rawUser?.fullName || rawUser?.full_name) || fullName.trim();
+      const nextPhone = (user?.mobileNumber || rawUser?.mobileNumber || rawUser?.mobile_number) || phoneNumber;
+      const nextRole = user ? (user.isAdmin ? 'admin' : 'member') : ((rawUser?.isAdmin ?? rawUser?.is_admin) ? 'admin' : 'member');
+      const nextGroup = (user?.groupId ?? rawUser?.groupId ?? rawUser?.group_id) || null;
+      
+      // Set basic user info from verify OTP response
       try {
         if (nextName) localStorage.setItem('userName', nextName);
         if (nextPhone) localStorage.setItem('userPhone', nextPhone);
@@ -97,25 +122,16 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       setUserName(nextName);
       setUserPhone(nextPhone);
       if (nextGroup) setGroup(nextGroup);
-
-      // Populate group members from API response, if present
-      if (Array.isArray(data.groupMembers)) {
+      
+      // Now fetch group members using the dedicated API
+      if (nextGroup) {
         try {
-          clearMembers();
-          data.groupMembers.forEach((m: any) => {
-            const memberId = m?.id != null ? String(m.id) : undefined;
-            if (!memberId) return;
-            // Avoid duplicating self; self is handled by store/GroupContext when location updates
-            if (memberId === String(nextUserId)) return;
-            addMember({
-              id: memberId,
-              name: m?.fullName || 'Member',
-              phone: m?.mobileNumber,
-              role: (m?.isAdmin ? 'admin' : 'member') as any,
-            } as any);
-          });
-        } catch {}
+          await refreshMembers();
+        } catch (e) {
+          console.warn('Failed to fetch group members:', e);
+        }
       }
+
       toast.success('Login successful');
       onLoginSuccess();
     } catch (err: any) {

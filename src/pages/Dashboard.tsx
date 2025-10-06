@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useState } from "react";
+import React, { memo, useCallback, useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusIndicator } from "@/components/ui/status-indicator";
@@ -22,15 +22,23 @@ import TestQRGenerator from "@/components/TestQRGenerator";
 import QRTestGuide from "@/components/QRTestGuide";
 import QRTestButton from "@/components/QRTestButton";
 import ManualQRInput from "@/components/ManualQRInput";
+import { useGroupMembers } from "@/hooks/useGroupMembers";
 
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const members = useAppStore((s) => s.members);
   const groupCode = useAppStore((s) => s.groupCode);
+  const { members, loading: membersLoading, error: membersError, refresh: refreshMembers } = useGroupMembers(groupCode);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [showTestQR, setShowTestQR] = useState(false);
   const [showTestGuide, setShowTestGuide] = useState(false);
+
+  // Call the API whenever Dashboard loads
+  useEffect(() => {
+    if (groupCode) {
+      refreshMembers();
+    }
+  }, [groupCode, refreshMembers]);
 
   const formatLastSeen = useCallback((ts?: number) => {
     if (!ts) return "";

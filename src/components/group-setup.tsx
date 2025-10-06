@@ -206,31 +206,61 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
       return;
     }
     setIsLoading(true);
-    try {
-      // Register member and trigger OTP
+    if (mode === 'join') { 
       try {
-        await authService.registerMember({ fullName: userName, mobileNumber: userPhone, age: userAge > 0 ? userAge : 18, groupId: groupCode });
-      } catch {}
-      const loginRes = await authService.loginMember({ mobileNumber: userPhone });
-      const otp = window.prompt('Enter OTP sent to your phone');
-      if (!otp || otp.trim().length < 4) {
-        toast.error('OTP required');
-        return;
+        await authService.joinExistingGroup({ userId: localStorage.getItem('userId') || '', groupId: groupCode });
+        joinGroup(groupCode);
+        onGroupCreated(groupCode);
+        toast.success('Joined group');
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to join group');
+      } finally {
+        setIsLoading(false);
       }
-      const verify = await authService.verifyOtp({ userId: loginRes.userId, otp: otp.trim(), userType: 'member' });
-      setUserId(verify.userId);
-      setUserRole('member');
-      joinGroup(groupCode);
-      onGroupCreated(groupCode);
-      toast.success('Joined group');
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to join group');
-    } finally {
-      setIsLoading(false);
+    } else {
+      try {
+        // Register member and trigger OTP
+         
+        try {
+          await authService.registerMember({ fullName: userName, mobileNumber: userPhone, age: userAge > 0 ? userAge : 18, groupId: groupCode });
+        } catch {}
+        const loginRes = await authService.loginMember({ mobileNumber: userPhone });
+        const otp = window.prompt('Enter OTP sent to your phone');
+        if (!otp || otp.trim().length < 4) {
+          toast.error('OTP required');
+          return;
+        }
+        const verify = await authService.verifyOtp({ userId: loginRes.userId, otp: otp.trim(), userType: 'member' });
+        setUserId(verify.userId);
+        setUserRole('member');
+        joinGroup(groupCode);
+        onGroupCreated(groupCode);
+        toast.success('Joined group');
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to join group');
+      } finally {
+        setIsLoading(false);
+      }
     }
+    
+
   };
 
   const handleJoinGroupViaCode = async (code: string) => {
+    console.info(code,"code 250")
+        if (mode === 'join') { 
+      try {
+        console.info(mode,"mode")
+        await authService.joinExistingGroup({ userId: localStorage.getItem('userId') || '', groupId: groupCode });
+        joinGroup(groupCode);
+        onGroupCreated(groupCode);
+        toast.success('Joined group');
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to join group');
+      } finally {
+        setIsLoading(false);
+      }
+    }
     const normalized = code.trim().toUpperCase().slice(0, 6);
     if (normalized.length < 6) return;
     setGroupCode(normalized);
@@ -238,6 +268,7 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
     await new Promise(resolve => setTimeout(resolve, 1000));
     joinGroup(normalized);
     onGroupCreated(normalized);
+    
   };
 
   const openScanner = () => {
@@ -256,6 +287,7 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
   };
 
   const onScanUpdate = (err: any, result: any) => {
+    console.info(result,"result")
     if (!scannerReady) setScannerReady(true);
     if (hasScanned) return;
     if (err) {
@@ -266,8 +298,10 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
       // different versions expose text differently
       // @ts-ignore
       text = result?.text ?? (typeof result?.getText === 'function' ? result.getText() : '');
+      console.info(text,"text 286")
       if (!text) return;
       const parsed = tryParseQR(text);
+      console.info(parsed,"parsed 286")
       if (parsed && parsed.kind === 'group_invite' && parsed.groupCode) {
         setHasScanned(true);
         try { if (navigator.vibrate) navigator.vibrate(15); } catch {}

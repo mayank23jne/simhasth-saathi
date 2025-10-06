@@ -12,6 +12,7 @@ import { getSimpleLocation } from '@/lib/location';
 import { useAppStore } from '@/store/appStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGroupMembers } from '@/hooks/useGroupMembers';
 
 const fieldBase = "flex flex-col gap-1";
 const labelBase = "text-sm font-medium text-foreground";
@@ -19,6 +20,7 @@ const hintBase = "text-xs text-muted-foreground";
 
 const AddMembers: React.FC = () => {
   const groupCode = useAppStore(s => s.groupCode) || (typeof window !== 'undefined' ? (localStorage.getItem('groupId') || 'GRP-2024-001') : 'GRP-2024-001');
+  const { members, loading: membersLoading, error: membersError, refresh: refreshMembers } = useGroupMembers(groupCode);
 
   const [inviteName, setInviteName] = useState('');
   const [inviteAge, setInviteAge] = useState('');

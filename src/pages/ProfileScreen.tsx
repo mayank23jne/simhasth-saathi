@@ -16,6 +16,7 @@ import { tryParseQR } from '@/lib/qr';
 import MyQRModal from '@/components/MyQRModal';
 import { ResponsiveButton } from '@/components/ui/responsive-button';
 import { ResponsiveContainer } from '@/components/ui/responsive-container';
+import { useGroupMembers } from '@/hooks/useGroupMembers';
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
@@ -25,8 +26,8 @@ const ProfileScreen = () => {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannedResult, setScannedResult] = useState<any>(null);
   const [qrModalOpen, setQrModalOpen] = useState(false);
-  const members = useAppStore(s => s.members);
   const groupCode = useAppStore(s => s.groupCode);
+  const { members, loading: membersLoading, error: membersError, refresh: refreshMembers } = useGroupMembers(groupCode);
   const storeUserName = useAppStore(s => s.userName);
   const storeUserPhone = useAppStore(s => s.userPhone);
   // Dynamic online members count (based on recent lastUpdated)
@@ -47,20 +48,11 @@ const ProfileScreen = () => {
 
   const userProfile = useMemo(() => ({
     name: storeUserName || 'You',
-    age: 68,
+    age: (() => { try { const a = localStorage.getItem('userAge'); return a ? Number(a) : undefined; } catch { return undefined; } })(),
     groupId: groupCode || (typeof window !== 'undefined' ? (localStorage.getItem('groupId') || '—') : '—'),
     phone: storeUserPhone || '',
     emergencyContacts: []
   }), [storeUserName, storeUserPhone, groupCode]);
-
-  const mockMembers = useMemo(() => ([
-    { id: 'MEM001', name: 'Ravi Sharma', phone: '+91 90000 00001', groupCode: 'GRP-2024-001' },
-    { id: 'MEM002', name: 'Sita Devi', phone: '+91 90000 00002', groupCode: 'GRP-2024-001' },
-    { id: 'MEM003', name: 'Mohan Lal', phone: '+91 90000 00003', groupCode: 'GRP-2024-001' },
-    { id: 'MEM004', name: 'Radha', phone: '+91 90000 00004', groupCode: 'GRP-2024-001' },
-  ]), []);
-
-  // Members now come from global store; persistence handled by store
 
   const handleShareLocation = useCallback(() => {
     const message = `${t('locationMessage')} - ${userProfile.name}`;
