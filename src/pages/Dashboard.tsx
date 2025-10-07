@@ -28,7 +28,12 @@ const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const groupCode = useAppStore((s) => s.groupCode);
-  const { members, loading: membersLoading, error: membersError, refresh: refreshMembers } = useGroupMembers(groupCode);
+  const {
+    members,
+    loading: membersLoading,
+    error: membersError,
+    refresh: refreshMembers,
+  } = useGroupMembers(groupCode);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [showTestQR, setShowTestQR] = useState(false);
   const [showTestGuide, setShowTestGuide] = useState(false);
@@ -170,6 +175,9 @@ const Dashboard: React.FC = () => {
                         <div className="h-2 w-2 bg-success rounded-full animate-pulse"></div>
                         <span className="text-responsive-xs font-medium text-foreground">
                           {m.name || "Member"}
+                          {(m as any)?.isAdmin || (m as any)?.role === "admin"
+                            ? " (admin)"
+                            : ""}
                         </span>
                       </div>
                       <span className="text-xs text-muted-foreground">
@@ -180,16 +188,40 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+              {/* <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
                 <Clock className="h-3 w-3 text-muted-foreground animate-pulse" />
                 <span className="text-xs text-muted-foreground">
-                  {members.length > 0
-                    ? `Last update: ${formatLastSeen(
-                        Math.max(...members.map((m) => m.lastUpdated || 0))
-                      )}`
-                    : t("lastUpdate")}
+                  {(() => {
+                    if (!members || members.length === 0)
+                      return t("lastUpdate");
+
+                    // Calculate best timestamp per member (lastUpdated or last path ts)
+                    const allTimestamps = members.map((m) => {
+                      const lastUpdated =
+                        typeof m.lastUpdated === "number" ? m.lastUpdated : 0;
+                      const pathMax =
+                        Array.isArray(m.path) && m.path.length > 0
+                          ? Math.max(...m.path.map((p) => p.ts || 0))
+                          : 0;
+                      const finalTs = Math.max(lastUpdated, pathMax);
+                      return { id: m.id, name: m.name, ts: finalTs };
+                    });
+
+                    // Debug logs
+                    console.group("🕒 Last Update Debug");
+                    console.table(allTimestamps);
+                    const maxLastUpdated = Math.max(
+                      ...allTimestamps.map((x) => x.ts || 0)
+                    );
+                    console.log("✅ Final Max Timestamp:", maxLastUpdated);
+                    const formatted = formatLastSeen(maxLastUpdated);
+                    console.log("🕓 Formatted Time:", formatted);
+                    console.groupEnd();
+
+                    return `Last update: ${formatted || "—"}`;
+                  })()}
                 </span>
-              </div>
+              </div> */}
             </div>
           </div>
         </Card>

@@ -19,6 +19,7 @@ interface GroupContextValue {
   members: GroupMember[];
   mapMode: "groups" | "helpdesk";
   helpdeskTarget: { id: string; name: string; lat: number; lng: number } | null;
+  isInitialized: boolean;
   joinGroup: (groupCode: string) => void;
   createGroup: (groupCode: string) => void;
   leaveGroup: () => void;
@@ -68,6 +69,7 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
 
   // UI-only state
   const [mapMode, setMapModeState] = useState<"groups" | "helpdesk">("groups");
+  const [isInitialized, setIsInitialized] = useState(false);
   const [helpdeskTarget, setHelpdeskTarget] = useState<{
     id: string;
     name: string;
@@ -147,7 +149,9 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
             path: nextPath.slice(Math.max(0, nextPath.length - 50)),
           });
         });
-      } catch {}
+      } catch (error) {
+        console.warn("Simulation update error:", error);
+      }
 
       // Shorter interval with smaller steps = smoother, slower movement
       const nextDelay = 3000 + Math.random() * 3000; // 3–6s
@@ -235,7 +239,9 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
             Date.now().toString()
           );
         }
-      } catch {}
+      } catch (error) {
+        console.warn("Storage error:", error);
+      }
       // Reset and initialize members around current user location
       clearMembersInStore();
       if (useAppStore.getState().userLocation) {
@@ -244,17 +250,49 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         ensureSelfMember(null);
       }
-      // Mock members and simulation disabled
+
+      // Fetch initial group locations immediately after joining
+      setTimeout(() => {
+        if (tokenStorage.get()) {
+          locationService
+            .getGroupLocations({ groupId: code })
+            .then((res) => {
+              if (res.success && res.data && Array.isArray(res.data)) {
+                const currentState = useAppStore.getState();
+                res.data.forEach((memberData) => {
+                  const memberId = memberData.id.toString();
+                  if (memberId === currentState.userId) return; // skip self
+
+                  const pos = {
+                    lat: parseFloat(memberData.latitude),
+                    lng: parseFloat(memberData.longitude),
+                  };
+                  addMemberInStore({
+                    id: memberId,
+                    name: memberData.full_name || "Member",
+                    isSelf: false,
+                    position: pos,
+                    lastUpdated: Date.now(),
+                    path: [{ lat: pos.lat, lng: pos.lng, ts: Date.now() }],
+                  });
+                });
+              }
+            })
+            .catch((e) =>
+              console.error("Error fetching initial group locations:", e)
+            );
+        }
+      }, 1000); // 1 second delay to ensure store is ready
     },
     [
       userId,
       setUserIdInStore,
       setGroupInStore,
+      setUserRoleInStore,
       clearMembersInStore,
       setUserLocationInStore,
       ensureSelfMember,
-      initializeMockMembers,
-      scheduleSimUpdates,
+      addMemberInStore,
     ]
   );
 
@@ -274,7 +312,9 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
             Date.now().toString()
           );
         }
-      } catch {}
+      } catch (error) {
+        console.warn("Storage error:", error);
+      }
       clearMembersInStore();
       if (useAppStore.getState().userLocation) {
         const loc = useAppStore.getState().userLocation!;
@@ -282,8 +322,50 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         ensureSelfMember(null);
       }
+
+      // Fetch initial group locations immediately after creating group
+      setTimeout(() => {
+        if (tokenStorage.get()) {
+          locationService
+            .getGroupLocations({ groupId: code })
+            .then((res) => {
+              if (res.success && res.data && Array.isArray(res.data)) {
+                const currentState = useAppStore.getState();
+                res.data.forEach((memberData) => {
+                  const memberId = memberData.id.toString();
+                  if (memberId === currentState.userId) return; // skip self
+
+                  const pos = {
+                    lat: parseFloat(memberData.latitude),
+                    lng: parseFloat(memberData.longitude),
+                  };
+                  addMemberInStore({
+                    id: memberId,
+                    name: memberData.full_name || "Member",
+                    isSelf: false,
+                    position: pos,
+                    lastUpdated: Date.now(),
+                    path: [{ lat: pos.lat, lng: pos.lng, ts: Date.now() }],
+                  });
+                });
+              }
+            })
+            .catch((e) =>
+              console.error("Error fetching initial group locations:", e)
+            );
+        }
+      }, 1000); // 1 second delay to ensure store is ready
     },
-    [joinGroup]
+    [
+      userId,
+      setUserIdInStore,
+      setGroupInStore,
+      setUserRoleInStore,
+      clearMembersInStore,
+      setUserLocationInStore,
+      ensureSelfMember,
+      addMemberInStore,
+    ]
   );
 
   const leaveGroup = useCallback(() => {
@@ -304,6 +386,12 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
       ensureSelfMember(useAppStore.getState().userLocation);
       // Mock members and simulation disabled on mount
     }
+
+    // Mark as initialized after a brief delay to ensure all stores are ready
+    setTimeout(() => {
+      setIsInitialized(true);
+    }, 100);
+
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEYS.groupCode && e.newValue === null) {
         setGroupInStore(null);
@@ -331,8 +419,11 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Throttled location push to backend
   useEffect(() => {
+    console.info(userLocation, "authToken");
+    console.info(localStorage.getItem("authToken"), "tokenStorage.get()");
+
     if (!userLocation) return;
-    if (!tokenStorage.get()) return;
+    if (!localStorage.getItem("authToken")) return;
     const now = Date.now();
     if (now - lastLocationPushTsRef.current < 5000) return; // 5s throttle
     lastLocationPushTsRef.current = now;
@@ -344,57 +435,78 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
       .catch(() => {});
   }, [userLocation]);
 
-  // Admin polling for group locations
+  // Group locations polling (for both admin and members)
   useEffect(() => {
     if (adminPollRef.current) {
       window.clearInterval(adminPollRef.current);
       adminPollRef.current = null;
     }
     if (!groupCode) return;
-    if (userRole !== "admin") return;
     if (!tokenStorage.get()) return;
 
     const poll = async () => {
+      // Skip if not authenticated
+      if (!tokenStorage.get()) return;
       try {
-        const res = await locationService.getGroupLocations();
-        const currentState = useAppStore.getState();
-        res.locations.forEach((loc) => {
-          if (!loc.userId) return;
-          if (loc.userId === currentState.userId) return; // skip self, already tracked locally
-          const pos = { lat: loc.latitude, lng: loc.longitude };
-          const existing = currentState.members.find(
-            (m) => m.id === loc.userId
-          );
-          if (existing) {
-            const basePath = existing.path || [];
-            const nextPath = [
-              ...basePath,
-              { lat: pos.lat, lng: pos.lng, ts: Date.now() },
-            ];
-            updateMemberInStore(existing.id, {
-              position: pos,
-              lastUpdated: Date.now(),
-              path: nextPath.slice(Math.max(0, nextPath.length - 50)),
-            });
-          } else {
-            addMemberInStore({
-              id: loc.userId,
-              name: loc.name || "Member",
-              isSelf: false,
-              position: pos,
-              lastUpdated: Date.now(),
-              path: [{ lat: pos.lat, lng: pos.lng, ts: Date.now() }],
-            });
-          }
+        const groupCode = localStorage.getItem("groupCode");
+        const res = await locationService.getGroupLocations({
+          groupId: groupCode,
         });
-      } catch (e) {
-        // ignore polling errors for robustness
+        const currentState = useAppStore.getState();
+
+        // Handle the new API response format
+        if (res.success && res.data && Array.isArray(res.data)) {
+          res.data.forEach((memberData) => {
+            const memberId = memberData.id.toString();
+            if (memberId === currentState.userId) return; // skip self, already tracked locally
+
+            const pos = {
+              lat: parseFloat(memberData.latitude),
+              lng: parseFloat(memberData.longitude),
+            };
+            const existing = currentState.members.find(
+              (m) => m.id === memberId
+            );
+
+            if (existing) {
+              const basePath = existing.path || [];
+              const nextPath = [
+                ...basePath,
+                { lat: pos.lat, lng: pos.lng, ts: Date.now() },
+              ];
+              updateMemberInStore(existing.id, {
+                position: pos,
+                lastUpdated: Date.now(),
+                path: nextPath.slice(Math.max(0, nextPath.length - 50)),
+              });
+            } else {
+              addMemberInStore({
+                id: memberId,
+                name: memberData.full_name || "Member",
+                isSelf: false,
+                position: pos,
+                lastUpdated: Date.now(),
+                path: [{ lat: pos.lat, lng: pos.lng, ts: Date.now() }],
+              });
+            }
+          });
+        }
+      } catch (e: any) {
+        // Silence unauthorized noise; keep polling silently until auth is available
+        if (
+          e?.status === 401 ||
+          /access token required/i.test(String(e?.message))
+        ) {
+          return;
+        }
+        // For other errors, reduce to warn to avoid console spam
+        console.warn("Error polling group locations:", e);
       }
     };
 
     // initial fetch then interval
     poll();
-    adminPollRef.current = window.setInterval(poll, 15000); // 15s
+    adminPollRef.current = window.setInterval(poll, 10000); // 10s for more real-time updates
 
     return () => {
       if (adminPollRef.current) {
@@ -402,7 +514,7 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
         adminPollRef.current = null;
       }
     };
-  }, [groupCode, userRole]);
+  }, [groupCode, userRole, addMemberInStore, updateMemberInStore]);
 
   const value = useMemo<GroupContextValue>(
     () => ({
@@ -412,6 +524,7 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
       members,
       mapMode,
       helpdeskTarget,
+      isInitialized,
       joinGroup,
       createGroup,
       leaveGroup,
@@ -425,6 +538,7 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
       members,
       mapMode,
       helpdeskTarget,
+      isInitialized,
       joinGroup,
       createGroup,
       leaveGroup,

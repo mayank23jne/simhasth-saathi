@@ -49,9 +49,9 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 /* ✅ Main App */
 const App = () => {
   useEffect(() => {
-    requestAppPermissions().then(({ locationGranted, cameraGranted }) => {
-      console.log("Permissions", { locationGranted, cameraGranted });
-      // show UI hint if not granted
+    // Request only location on first app launch; camera will be requested lazily by QR scanner
+    requestAppPermissions().then(({ locationGranted }) => {
+      console.log("Location permission", { locationGranted });
     });
   }, []);
 
