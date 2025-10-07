@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { detectQRScan, clearQRScanData } from "@/lib/externalQR";
+import { authService } from "../services/authService";
 
 interface QRScanData {
   type?: string;
@@ -45,37 +46,73 @@ const QRScanResult: React.FC = () => {
   const navigate = useNavigate();
   const [scanData, setScanData] = useState<QRScanData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const hasProcessedRef = useRef(false);
+  const [showBindForm, setShowBindForm] = useState(false);
+  const [qrId, setQrId] = useState("");
+  const [bindFormData, setBindFormData] = useState({
+    fullName: "",
+    age: "",
+    emergencyContact: "",
+    address: "",
+  });
+  const [boundUser, setBoundUser] = useState<null | {
+    fullName: string;
+    age?: number;
+    emergencyContact?: string;
+    address?: string;
+  }>(null);
 
   useEffect(() => {
+    if (hasProcessedRef.current) return; // prevent double-run (e.g., StrictMode)
+    hasProcessedRef.current = true;
+
     // Get scan data from location state
     let data = location.state?.scanData;
-    console.log("QRScanResult - Received data:", data);
-    console.log("QRScanResult - Location state:", location.state);
 
-    // If no data from location state, try to detect external QR
-    if (!data) {
-      const externalQR = detectQRScan();
-      if (externalQR) {
-        console.log("QRScanResult - External QR detected:", externalQR);
-        // Try to parse external QR data
-        try {
-          const parsed = JSON.parse(externalQR);
-          data = parsed;
-        } catch {
-          // If not JSON, treat as raw text
-          data = { type: "raw", text: externalQR, ts: Date.now() };
+    const fetchData = async () => {
+      if (!data) {
+        const externalQR = detectQRScan();
+        if (externalQR) {
+          try {
+            data = JSON.parse(externalQR);
+          } catch {
+            data = { type: "raw", text: externalQR, ts: Date.now() };
+          }
+          clearQRScanData();
         }
-        // Clear the external QR data
-        clearQRScanData();
       }
-    }
 
-    if (data) {
-      setScanData(data);
-    } else {
-      console.log("QRScanResult - No scan data found");
-    }
-    setIsLoading(false);
+      if (data) {
+        // ✅ FIX: must check data.text (not data itself)
+        const urlMatch = String(data.text || "").match(
+          /\/member-details\/(\d+)(?:\/|$)/i
+        );
+        if (urlMatch) {
+          const qrId = urlMatch[1];
+          setQrId(qrId);
+          console.info("Detected member-details URL, extracted qrId:", qrId);
+          setScanData(data);
+
+          // Call API
+          try {
+            const res = await authService.getQrScanDetails(qrId);
+            console.info("QR API response:", res);
+
+            if (res?.data?.isBound === false) {
+              setShowBindForm(true); // Show form
+            } else if (res?.data?.isBound === true && res?.data?.user) {
+              setBoundUser(res.data.user); // Show bound user info
+            }
+          } catch (err) {
+            console.error("Error fetching QR details:", err);
+          }
+        }
+      }
+
+      setIsLoading(false);
+    };
+
+    fetchData();
   }, [location.state]);
 
   const handleCopyData = () => {
@@ -359,6 +396,125 @@ const QRScanResult: React.FC = () => {
                     <p className="text-sm text-red-100">Group</p>
                     <p className="font-semibold">
                       {scanData.groupCode || "Not available"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {showBindForm && (
+            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm my-6">
+              <CardContent className="p-6">
+                <h2 className="text-xl font-bold mb-4">Bind QR to User</h2>
+
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    value={bindFormData.fullName}
+                    onChange={(e) =>
+                      setBindFormData({
+                        ...bindFormData,
+                        fullName: e.target.value,
+                      })
+                    }
+                    className="w-full p-2 border rounded"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Age"
+                    value={bindFormData.age}
+                    onChange={(e) =>
+                      setBindFormData({ ...bindFormData, age: e.target.value })
+                    }
+                    className="w-full p-2 border rounded"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Emergency Contact"
+                    value={bindFormData.emergencyContact}
+                    onChange={(e) =>
+                      setBindFormData({
+                        ...bindFormData,
+                        emergencyContact: e.target.value,
+                      })
+                    }
+                    className="w-full p-2 border rounded"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Address"
+                    value={bindFormData.address}
+                    onChange={(e) =>
+                      setBindFormData({
+                        ...bindFormData,
+                        address: e.target.value,
+                      })
+                    }
+                    className="w-full p-2 border rounded"
+                  />
+
+                  <Button
+                    className="w-full mt-2"
+                    onClick={async () => {
+                      try {
+                        console.info(scanData);
+                        const payload = {
+                          qrId: scanData?.id || qrId,
+                          groupId: localStorage.getItem("groupId"),
+                          ...bindFormData,
+                        };
+                        const response = await fetch(
+                          "https://app.jyada.in/api/qr/bind",
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(payload),
+                          }
+                        );
+                        const result = await response.json();
+                        console.log("Bind response:", result);
+                        toast.success("QR successfully bound!");
+                        setShowBindForm(false);
+                      } catch (err) {
+                        console.error(err);
+                        toast.error("Failed to bind QR code.");
+                      }
+                    }}
+                  >
+                    Bind QR
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {boundUser && (
+            <Card className="shadow-lg border-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white my-6">
+              <CardContent className="p-6">
+                <h2 className="text-2xl font-bold mb-4">User Information</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-white/20 rounded-lg">
+                    <p className="text-sm text-white/80">Full Name</p>
+                    <p className="font-semibold text-white">
+                      {boundUser.fullName}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white/20 rounded-lg">
+                    <p className="text-sm text-white/80">Age</p>
+                    <p className="font-semibold text-white">
+                      {boundUser.age ?? "Not available"}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white/20 rounded-lg">
+                    <p className="text-sm text-white/80">Emergency Contact</p>
+                    <p className="font-semibold text-white">
+                      {boundUser.emergencyContact ?? "Not available"}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white/20 rounded-lg">
+                    <p className="text-sm text-white/80">Address</p>
+                    <p className="font-semibold text-white">
+                      {boundUser.address ?? "Not available"}
                     </p>
                   </div>
                 </div>

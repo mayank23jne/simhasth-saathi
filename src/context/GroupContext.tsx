@@ -445,6 +445,8 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
     if (!tokenStorage.get()) return;
 
     const poll = async () => {
+      // Skip if not authenticated
+      if (!tokenStorage.get()) return;
       try {
         const groupCode = localStorage.getItem("groupCode");
         const res = await locationService.getGroupLocations({
@@ -489,9 +491,16 @@ export const GroupProvider = ({ children }: { children: React.ReactNode }) => {
             }
           });
         }
-      } catch (e) {
-        console.error("Error polling group locations:", e);
-        // ignore polling errors for robustness
+      } catch (e: any) {
+        // Silence unauthorized noise; keep polling silently until auth is available
+        if (
+          e?.status === 401 ||
+          /access token required/i.test(String(e?.message))
+        ) {
+          return;
+        }
+        // For other errors, reduce to warn to avoid console spam
+        console.warn("Error polling group locations:", e);
       }
     };
 

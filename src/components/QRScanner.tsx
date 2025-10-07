@@ -136,14 +136,19 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           if (navigator.vibrate) navigator.vibrate(15);
         } catch {}
         toast.success("QR स्कैन हुआ");
-        console.info(mapped,"mapped 123456")
+        console.info(mapped, "mapped 123456");
         // Special case: group invite → join existing group, navigate only on success
         if (mapped.type === "group_invite" && mapped.groupCode) {
           (async () => {
             try {
-              const code = String(mapped.groupCode) || localStorage.getItem("groupCode") || "";
+              const code =
+                String(mapped.groupCode) ||
+                localStorage.getItem("groupCode") ||
+                "";
               const userId = (
-                localStorage.getItem("userId") || useAppStore.getState().userId || ""
+                localStorage.getItem("userId") ||
+                useAppStore.getState().userId ||
+                ""
               ).toString();
               if (!userId) throw new Error("Not logged in");
               await authService.joinExistingGroup({ userId, groupId: code });
@@ -161,7 +166,10 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           })();
         } else {
           // Default behavior for other QR kinds
-          console.log("QRScanner - Navigating to /qr-result with data:", mapped);
+          console.log(
+            "QRScanner - Navigating to /qr-result with data:",
+            mapped
+          );
           close();
           navigate("/qr-result", { state: { scanData: mapped } });
           onScanResult(mapped);
@@ -231,15 +239,23 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 if (navigator.vibrate) navigator.vibrate(15);
               } catch {}
               toast.success("QR स्कैन हुआ");
-              console.info(mapped,"mapped 123456  789456")
+              console.info(mapped, "mapped 123456  789456");
               if (mapped.type === "group_invite" && mapped.groupCode) {
                 try {
-                  const code = String(mapped.groupCode) || localStorage.getItem("groupCode") || "";
+                  const code =
+                    String(mapped.groupCode) ||
+                    localStorage.getItem("groupCode") ||
+                    "";
                   const userId = (
-                    localStorage.getItem("userId") || useAppStore.getState().userId || ""
+                    localStorage.getItem("userId") ||
+                    useAppStore.getState().userId ||
+                    ""
                   ).toString();
                   if (!userId) throw new Error("Not logged in");
-                  await authService.joinExistingGroup({ userId, groupId: code });
+                  await authService.joinExistingGroup({
+                    userId,
+                    groupId: code,
+                  });
                   try {
                     useAppStore.getState().setGroup(code);
                   } catch {}
