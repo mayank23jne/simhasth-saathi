@@ -18,7 +18,11 @@ import "leaflet-routing-machine";
 import { useTranslation } from "@/context/TranslationContext";
 import { useGroup } from "@/context/GroupContext";
 import { toast } from "sonner";
-import type { GroupMember, MemberPathPoint } from "@/store/appStore";
+import {
+  useAppStore,
+  type GroupMember,
+  type MemberPathPoint,
+} from "@/store/appStore";
 
 /** Lightweight coordinate type used for Leaflet interop. */
 type LatLng = { lat: number; lng: number; ts?: number };
@@ -175,8 +179,16 @@ const MapScreen: React.FC = () => {
     userLocation,
     mapMode,
     helpdeskTarget,
+    isInitialized,
     setMapMode,
   } = useGroup();
+
+  // Show loading state until context is initialized
+
+  // Debug log for members from API
+  useEffect(() => {
+    console.log("MapScreen - Current members:", members);
+  }, [members]);
   const [showGeofenceAlert, setShowGeofenceAlert] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [selectedMember, setSelectedMember] = useState<GroupMember | null>(
@@ -400,23 +412,34 @@ const MapScreen: React.FC = () => {
 
   // Track user location with tight throttling (0.8–1.2s) and feed into GroupContext
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    // One-time immediate fetch to avoid using any stale persisted location
+    if (!navigator.geolocation) {
+      console.error("Geolocation not supported by your browser.");
+      return;
+    }
+    const currentState = useAppStore.getState();
+    console.info(currentState, "Current State");
+    // Get initial position once and seed context
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        try {
-          const userLat = position.coords.latitude;
-          const userLng = position.coords.longitude;
-          prevUserPosRef.current = { lat: userLat, lng: userLng };
-          setUserLocation(userLat, userLng);
-        } catch {}
+        const { latitude, longitude, heading } =
+          position.coords as GeolocationCoordinates & { heading?: number };
+        setUserLocation(latitude, longitude);
+        if (typeof heading === "number" && !Number.isNaN(heading)) {
+          prevHeadingRef.current = lastHeadingRef.current ?? heading;
+          lastHeadingRef.current = heading;
+        }
+        prevUserPosRef.current = { lat: latitude, lng: longitude };
       },
-      () => {
-        // keep silent here; watchPosition handler below will surface errors
+      (error) => {
+        console.error("Error getting location:", error.message);
       },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0,
+      }
     );
-
+    // Start live updates with throttling for smoothness
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const now = Date.now();
@@ -440,15 +463,11 @@ const MapScreen: React.FC = () => {
             prevHeadingRef.current = lastHeadingRef.current ?? computed;
             lastHeadingRef.current = computed;
           }
-        } else {
-          if (typeof heading === "number") {
-            prevHeadingRef.current = lastHeadingRef.current ?? heading;
-            lastHeadingRef.current = heading;
-          }
+        } else if (typeof heading === "number") {
+          prevHeadingRef.current = lastHeadingRef.current ?? heading;
+          lastHeadingRef.current = heading;
         }
         prevUserPosRef.current = { lat: userLat, lng: userLng };
-        console.info(userLat, "UserLat");
-        console.info(userLng, "userLng");
         setUserLocation(userLat, userLng);
       },
       () => toast.error("Geolocation error"),
@@ -854,10 +873,90 @@ const MapScreen: React.FC = () => {
             .openOn(map);
         };
 
-        // Always show a fallback route immediately
-        drawFallbackRoute();
-        // Then try to get the OSRM route
-        createOrUpdateRoutingControl();
+        // Distance-aware routing behavior
+        const distM = map.distance(userPos, memberPos);
+        const CLOSE_DIST_M = 80; // footsteps
+        const MEDIUM_DIST_M = 250; // short straight line with ETA
+
+        if (distM < CLOSE_DIST_M) {
+          // Very close: dashed footsteps line, no OSRM, no popup
+          if (
+            osrmRoutingControlRef.current &&
+            map.hasLayer(osrmRoutingControlRef.current)
+          ) {
+            map.removeControl(osrmRoutingControlRef.current);
+            osrmRoutingControlRef.current = null;
+          }
+          if (routePopupRef.current) {
+            map.closePopup(routePopupRef.current);
+            routePopupRef.current = null;
+          }
+          if (fallbackRoutePopupRef.current) {
+            map.closePopup(fallbackRoutePopupRef.current);
+            fallbackRoutePopupRef.current = null;
+          }
+          if (!fallbackRouteLineRef.current) {
+            fallbackRouteLineRef.current = L.polyline([userPos, memberPos], {
+              color: "#2563eb",
+              weight: 4,
+              opacity: 0.9,
+              dashArray: "2, 12",
+              renderer: L.canvas(),
+            }).addTo(map);
+          } else {
+            fallbackRouteLineRef.current.setLatLngs([userPos, memberPos]);
+            fallbackRouteLineRef.current.setStyle({
+              dashArray: "2, 12",
+              weight: 4,
+            });
+            if (!map.hasLayer(fallbackRouteLineRef.current))
+              map.addLayer(fallbackRouteLineRef.current);
+          }
+        } else if (distM < MEDIUM_DIST_M) {
+          // Medium distance: solid short straight line + popup ETA (walking)
+          if (
+            osrmRoutingControlRef.current &&
+            map.hasLayer(osrmRoutingControlRef.current)
+          ) {
+            map.removeControl(osrmRoutingControlRef.current);
+            osrmRoutingControlRef.current = null;
+          }
+          const etaMin = Math.round(distM / 1.4 / 60);
+          if (!fallbackRouteLineRef.current) {
+            fallbackRouteLineRef.current = L.polyline([userPos, memberPos], {
+              color: "#2563eb",
+              weight: 5,
+              opacity: 0.9,
+              renderer: L.canvas(),
+            }).addTo(map);
+          } else {
+            fallbackRouteLineRef.current.setLatLngs([userPos, memberPos]);
+            fallbackRouteLineRef.current.setStyle({
+              dashArray: undefined,
+              weight: 5,
+            });
+            if (!map.hasLayer(fallbackRouteLineRef.current))
+              map.addLayer(fallbackRouteLineRef.current);
+          }
+          const mid = L.latLng(
+            (userPos.lat + memberPos.lat) / 2,
+            (userPos.lng + memberPos.lng) / 2
+          );
+          if (!fallbackRoutePopupRef.current)
+            fallbackRoutePopupRef.current = L.popup();
+          fallbackRoutePopupRef.current
+            .setLatLng(mid)
+            .setContent(
+              `<div><strong>${(distM / 1000).toFixed(
+                2
+              )} km</strong> • ${etaMin} min</div>`
+            )
+            .openOn(map);
+        } else {
+          // Long distance: draw fallback immediately then try OSRM route
+          drawFallbackRoute();
+          createOrUpdateRoutingControl();
+        }
 
         // Fit bounds only when a new member is selected
         if (lastFitForMemberIdRef.current !== selectedMemberId) {
@@ -1651,8 +1750,85 @@ const MapScreen: React.FC = () => {
               .openOn(map);
           };
 
-          drawHelpdeskFallbackRoute(); // Always show fallback immediately
-          createOrUpdateHelpdeskRouting(); // Then try to get OSRM route
+          const distM = map.distance(userPos, targetPos);
+          const CLOSE_DIST_M = 80;
+          const MEDIUM_DIST_M = 250;
+
+          if (distM < CLOSE_DIST_M) {
+            // footsteps dashed line only
+            if (
+              helpdeskRoutingControlRef.current &&
+              map.hasLayer(helpdeskRoutingControlRef.current)
+            ) {
+              map.removeControl(helpdeskRoutingControlRef.current);
+              helpdeskRoutingControlRef.current = null;
+            }
+            if (helpdeskRoutePopupRef.current) {
+              map.closePopup(helpdeskRoutePopupRef.current);
+              helpdeskRoutePopupRef.current = null;
+            }
+            if (!helpdeskPolylineRef.current) {
+              helpdeskPolylineRef.current = L.polyline([userPos, targetPos], {
+                color: "#2563eb",
+                weight: 4,
+                opacity: 0.9,
+                dashArray: "2, 12",
+                renderer: L.canvas(),
+              }).addTo(map);
+            } else {
+              helpdeskPolylineRef.current.setLatLngs([userPos, targetPos]);
+              helpdeskPolylineRef.current.setStyle({
+                dashArray: "2, 12",
+                weight: 4,
+              });
+              if (!map.hasLayer(helpdeskPolylineRef.current))
+                map.addLayer(helpdeskPolylineRef.current);
+            }
+          } else if (distM < MEDIUM_DIST_M) {
+            // short solid line + popup ETA
+            if (
+              helpdeskRoutingControlRef.current &&
+              map.hasLayer(helpdeskRoutingControlRef.current)
+            ) {
+              map.removeControl(helpdeskRoutingControlRef.current);
+              helpdeskRoutingControlRef.current = null;
+            }
+            const etaMin = Math.round(distM / 1.4 / 60);
+            if (!helpdeskPolylineRef.current) {
+              helpdeskPolylineRef.current = L.polyline([userPos, targetPos], {
+                color: "#2563eb",
+                weight: 5,
+                opacity: 0.9,
+                renderer: L.canvas(),
+              }).addTo(map);
+            } else {
+              helpdeskPolylineRef.current.setLatLngs([userPos, targetPos]);
+              helpdeskPolylineRef.current.setStyle({
+                dashArray: undefined,
+                weight: 5,
+              });
+              if (!map.hasLayer(helpdeskPolylineRef.current))
+                map.addLayer(helpdeskPolylineRef.current);
+            }
+            const mid = L.latLng(
+              (userPos.lat + targetPos.lat) / 2,
+              (userPos.lng + targetPos.lng) / 2
+            );
+            if (!helpdeskRoutePopupRef.current)
+              helpdeskRoutePopupRef.current = L.popup();
+            helpdeskRoutePopupRef.current
+              .setLatLng(mid)
+              .setContent(
+                `<div><strong>${(distM / 1000).toFixed(
+                  2
+                )} km</strong> • ${etaMin} min</div>`
+              )
+              .openOn(map);
+          } else {
+            // fallback then OSRM
+            drawHelpdeskFallbackRoute();
+            createOrUpdateHelpdeskRouting();
+          }
         });
       }
       const label = `Nearest Help Center: ${helpdeskTarget.name}`;
@@ -1791,7 +1967,19 @@ const MapScreen: React.FC = () => {
               .openOn(map);
           })
           .addTo(map);
-        helpdeskRoutingControlRef.current = control;
+        // Distance-aware: if user is close/medium, prefer straight line and skip OSRM
+        const distM2 = map.distance(userPos, targetPos);
+        const CLOSE_DIST_M2 = 80;
+        const MEDIUM_DIST_M2 = 250;
+        if (distM2 < CLOSE_DIST_M2 || distM2 < MEDIUM_DIST_M2) {
+          // Remove the OSRM control we just created; straight line will be drawn by the click handler path
+          try {
+            (map as any).removeControl(control);
+          } catch {}
+          helpdeskRoutingControlRef.current = null;
+        } else {
+          helpdeskRoutingControlRef.current = control;
+        }
       }
     } else {
       // leaving helpdesk mode -> remove helpdesk marker and any routes/popups
@@ -1897,6 +2085,17 @@ const MapScreen: React.FC = () => {
     }
   }, [members, geofenceBreachMemberId, setMapMode]);
 
+  if (!isInitialized) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Loading...</h2>
+          <p className="text-muted-foreground">Initializing group context...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="flex flex-col h-[87vh] bg-background">
@@ -1971,18 +2170,31 @@ const MapScreen: React.FC = () => {
                 </Button>
               </div>
               <div className="p-3 max-h-48 overflow-auto space-y-2 text-sm">
-                {[...selectedMember.path]
-                  .slice(-10)
-                  .reverse()
-                  .map((p: MemberPathPoint, idx: number) => {
-                    // Get location name or use coordinates
+                {(() => {
+                  const raw: MemberPathPoint[] = [...selectedMember.path];
+                  const epsilon = 1e-5; // ~1m precision
+                  const deduped: MemberPathPoint[] = [];
+                  for (
+                    let i = raw.length - 1;
+                    i >= 0 && deduped.length < 10;
+                    i--
+                  ) {
+                    const p = raw[i];
+                    const lastKept = deduped[deduped.length - 1];
+                    const differs =
+                      !lastKept ||
+                      Math.abs(p.lat - lastKept.lat) > epsilon ||
+                      Math.abs(p.lng - lastKept.lng) > epsilon;
+                    if (differs) deduped.push(p);
+                  }
+                  // deduped is newest-first
+                  return deduped.map((p, idx) => {
                     const locationName =
                       (p as any).locationName || `Location ${idx + 1}`;
                     const isLastLocation = idx === 0;
-
                     return (
                       <div
-                        key={idx}
+                        key={`${p.lat.toFixed(5)},${p.lng.toFixed(5)}-${idx}`}
                         className={`flex items-start justify-between p-2 rounded-md ${
                           isLastLocation
                             ? "bg-primary/10 border border-primary/20"
@@ -2004,7 +2216,8 @@ const MapScreen: React.FC = () => {
                         </div>
                       </div>
                     );
-                  })}
+                  });
+                })()}
               </div>
               <div className="p-2 border-t border-card-border bg-muted/30">
                 <div className="text-xs text-muted-foreground text-center">
