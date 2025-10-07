@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect ,useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -14,6 +14,8 @@ import simhasthaLogo from '@/assets/simhastha_logo.png';
 import BarcodeScanner from 'react-qr-barcode-scanner';
 import { useAppStore } from '@/store/appStore';
 import { authService } from '@/services/authService';
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface GroupSetupProps {
   onGroupCreated: (groupCode: string) => void;
@@ -43,6 +45,51 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
   const userAge = Number(typeof window !== 'undefined' ? localStorage.getItem('userAge') || '0' : '0') || 0;
   const setUserRole = useAppStore(s => s.setUserRole);
   const setUserId = useAppStore(s => s.setUserId);
+  const printRef = useRef();
+
+  const handleDownloadPdf = async () => {
+    const element = printRef.current;
+  
+    // Set higher scale for better quality
+    const scale = 3;
+    const margin = 40;
+  
+    // Canvas size is element size * scale
+    const canvas = await html2canvas(element, {
+      useCORS: true,
+      backgroundColor: null,
+      scale: scale
+    });
+  
+    const imgData = canvas.toDataURL('image/png');
+    const pdfWidth = element.offsetWidth + margin * 2;
+    const pdfHeight = element.offsetHeight + margin * 2;
+  
+    // Adjust image size according to scale
+    const imgWidth = element.offsetWidth;
+    const imgHeight = element.offsetHeight;
+  
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "px",
+      format: [pdfWidth, pdfHeight],
+    });
+  
+    // Shrink the image to original dimensions for PDF
+    pdf.addImage(
+      imgData,
+      'PNG',
+      margin,
+      margin,
+      imgWidth,
+      imgHeight
+    );
+  
+    pdf.save("group-qr-code.pdf");
+  };
+  
+  
+
 
   const texts = {
   en: {
@@ -667,9 +714,9 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
                     </AnimatePresence>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div  className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="relative p-4 rounded-2xl bg-white shadow-soft border overflow-hidden">
+                       <div ref={printRef} id="group-qr-code" className="relative p-4 rounded-2xl bg-white shadow-soft border overflow-hidden">
                         <motion.div
                           className="absolute inset-0 rounded-2xl"
                           initial={{ opacity: 0.4, scale: 0.8 }}
@@ -677,7 +724,10 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
                           transition={{ duration: 2, repeat: Infinity }}
                           style={{ boxShadow: '0 0 0 8px rgba(99,102,241,0.08)' }}
                         />
-                        <QRCode id="group-qr-code" value={qrRedirectURL} size={160} fgColor="#0F172A" bgColor="#FFFFFF" />
+                        <div  className='flex flex-col align-center w-100 gap-4'>
+                        <img src="/src/assets/Hackathon.png" alt="Logo" width={100} />
+                        <QRCode  value={qrRedirectURL} size={160} fgColor="#0F172A" bgColor="#FFFFFF" />
+                        </div>
                         {/* <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                           <div className="w-10 h-10 rounded-full bg-white border shadow grid place-items-center">
                             <img src={simhasthaLogo} alt="logo" className="w-8 h-8 object-contain" />
@@ -685,7 +735,7 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({ onGroupCreated, language
                         </div> */}
                       </div>
                       <div className="flex flex-wrap items-center justify-center gap-2 w-full mt-1">
-                        <Button variant="outline" size="sm" onClick={handleDownloadQR} className="w-full sm:w-auto">{t.downloadQR}</Button>
+                        <Button variant="outline" size="sm" onClick={handleDownloadPdf} className="w-full sm:w-auto">{t.downloadQR}</Button>
                         <Button variant="outline" size="sm" onClick={() => setShareOpen(true)} className="w-full sm:w-auto">{t.shareButton}</Button>
                         <Button variant="outline" size="sm" onClick={handleCopyLink} className="w-full sm:w-auto">{t.copyLink}</Button>
                       </div>

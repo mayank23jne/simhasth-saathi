@@ -27,6 +27,40 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     navigate('/admin/dashboard');
   };
 
+  const downloadQrPng = async () => {
+    try {
+      const response = await fetch('https://app.jyada.in/api/qr/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ quantity: 12 })
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const blob = await response.blob();
+  
+      // Create a download link and trigger download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'qr.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+  
+      // Clean up URL object after download
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
+    
+
   return (
     <div className="min-h-screen-safe bg-gradient-to-br from-saffron-light via-background to-sky-blue-light flex flex-col items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-sm sm:max-w-md space-y-6 sm:space-y-8 animate-fade-in">
@@ -103,6 +137,17 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
           >
             <span className="flex items-center justify-center gap-3 text-responsive-sm font-medium">
               {t('adminLogin')}
+            </span>
+          </Button>
+
+          <Button
+            onClick={downloadQrPng}
+            variant="outline"
+            size="lg"
+            className="w-full min-h-button border-primary/20 hover:bg-primary/5 text-primary shadow-soft focus-ring touch-button transition-all duration-200"
+            aria-label="Generate Pre QR">
+            <span className="flex items-center justify-center gap-3 text-responsive-sm font-medium">
+              Generate pre QR
             </span>
           </Button>
         </div>

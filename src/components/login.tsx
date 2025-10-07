@@ -227,7 +227,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     className="pl-10 min-h-input text-responsive-sm focus-ring transition-all duration-200"
-                    maxLength={13}
+                    maxLength={10}
                     aria-label="Enter your phone number"
                   />
                 </div>

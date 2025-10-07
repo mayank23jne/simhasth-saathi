@@ -13,12 +13,18 @@ import { useAppStore } from '@/store/appStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGroupMembers } from '@/hooks/useGroupMembers';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { useRef } from 'react';
 
 const fieldBase = "flex flex-col gap-1";
 const labelBase = "text-sm font-medium text-foreground";
 const hintBase = "text-xs text-muted-foreground";
 
+
+
 const AddMembers: React.FC = () => {
+  const pdfRef = useRef();
   const groupCode = useAppStore(s => s.groupCode) || (typeof window !== 'undefined' ? (localStorage.getItem('groupId') || 'GRP-2024-001') : 'GRP-2024-001');
   const { members, loading: membersLoading, error: membersError, refresh: refreshMembers } = useGroupMembers(groupCode);
 
@@ -28,7 +34,6 @@ const AddMembers: React.FC = () => {
 
   const [qrName, setQrName] = useState('');
   const [qrAge, setQrAge] = useState('');
-  const [qrPhone, setQrPhone] = useState('');
   const [qrAddress, setQrAddress] = useState('');
   const [qrEmergency, setQrEmergency] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -36,7 +41,6 @@ const AddMembers: React.FC = () => {
   // UX helpers: sanitize and validate inputs
   const onlyDigits = (v: string) => v.replace(/\D/g, '');
   const handleInvitePhoneChange = (v: string) => setInvitePhone(onlyDigits(v).slice(0, 10));
-  const handleQrPhoneChange = (v: string) => setQrPhone(onlyDigits(v).slice(0, 10));
   const handleInviteAgeChange = (v: string) => setInviteAge(onlyDigits(v).slice(0, 3));
   const handleQrAgeChange = (v: string) => setQrAge(onlyDigits(v).slice(0, 3));
 
@@ -209,7 +213,7 @@ const AddMembers: React.FC = () => {
   };
 
   const handleGenerate = async () => {
-    if (!qrName.trim() || !qrAge.trim() || !qrPhone.trim()) {
+    if (!qrName.trim() || !qrAge.trim()) {
       toast.error('Please fill name, age and mobile number');
       return;
     }
@@ -229,7 +233,7 @@ const AddMembers: React.FC = () => {
         groupId: groupCode,
         fullName: qrName.trim(),
         age: ageNum,
-        emergencyContact: (qrEmergency || qrPhone).trim(),
+        emergencyContact: (qrEmergency),
         address: (qrAddress.trim() || locationName),
       });
     } catch (e) {
@@ -244,7 +248,6 @@ const AddMembers: React.FC = () => {
       id,
       name: qrName.trim(),
       groupCode,
-      phone: qrPhone.trim(),
       age: ageNum,
       latitude,
       longitude,
@@ -252,11 +255,10 @@ const AddMembers: React.FC = () => {
       address: qrAddress.trim() || locationName,
       qrId,
     } as any);
-    const entry: GeneratedEntry = { id, name: qrName.trim(), age: ageNum, phone: qrPhone.trim(), groupCode, payload };
+    const entry: GeneratedEntry = { id, name: qrName.trim(), age: ageNum, groupCode, payload };
     setGenerated(prev => [entry, ...prev]);
     setQrName('');
     setQrAge('');
-    setQrPhone('');
     setQrAddress('');
     setQrEmergency('');
     setSubmitting(false);
@@ -277,8 +279,37 @@ const AddMembers: React.FC = () => {
     }
   };
 
-  const isFilled = !!(qrName.trim() && qrAge.trim() && qrPhone.trim());
-  const progress = (Number(!!qrName.trim()) + Number(!!qrAge.trim()) + Number(!!qrPhone.trim())) / 3;
+  const isFilled = !!(qrName.trim() && qrAge.trim() );
+  const progress = (Number(!!qrName.trim()) + Number(!!qrAge.trim())) / 2;
+
+
+  const handleDownloadPDF = async () => {
+    const input = pdfRef.current;
+    if (!input) return;
+  
+    const canvas = await html2canvas(input, {
+      scale: 2,
+      useCORS: true,
+      ignoreElements: (el) => {
+        return el.classList?.contains('no-print');
+      },
+    });
+  
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4',
+    });
+  
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+  
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`member-qr-${selected.name || 'unknown'}.pdf`);
+  };
+  
+  
 
   return (
     <div className="min-h-screen-safe bg-gradient-to-br from-saffron-light/30 via-background to-sky-blue-light/30">
@@ -348,11 +379,11 @@ const AddMembers: React.FC = () => {
                       <Input type="number" inputMode="numeric" min={1} max={120} value={qrAge} onChange={e => handleQrAgeChange(e.target.value)} placeholder="Age in years" aria-label="Age" />
                       <p className={hintBase}>Enter age between 1-120.</p>
                     </div>
-                    <div className={fieldBase}>
+                    {/* <div className={fieldBase}>
                       <label className={labelBase}>Mobile Number</label>
                       <Input type="tel" inputMode="tel" maxLength={10} value={qrPhone} onChange={e => handleQrPhoneChange(e.target.value)} placeholder="10-digit mobile number" aria-label="Mobile Number" />
                       <p className={hintBase}>Digits only. Country code auto-applied for 10 digits.</p>
-                    </div>
+                    </div> */}
                     <div className={fieldBase}>
                       <label className={labelBase}>Emergency Contact</label>
                       <Input type="tel" inputMode="tel" maxLength={10} value={qrEmergency} onChange={e => setQrEmergency(e.target.value.replace(/\D/g, ''))} placeholder="Alternate phone (optional)" aria-label="Emergency Contact" />
@@ -442,40 +473,48 @@ const AddMembers: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="max-w-xs w-full p-0 rounded-2xl shadow-2xl">
-            <DialogHeader className="p-[7px]">
-              <DialogTitle className="flex items-center gap-2 text-lg">
-                <QrCode className="h-5 w-5" /> Member QR
-              </DialogTitle>
-            </DialogHeader>
-            {selected && (
-              <Card className="shadow-lg rounded-2xl border-0">
-                <CardContent className="flex flex-col items-center gap-4 p-6">
-                  <div className="text-center">
-                    <div className="font-bold text-base text-foreground">{selected.name}</div>
-                    {selected.phone && <div className="text-sm text-muted-foreground">{selected.phone}</div>}
-                    <div className="text-xs text-primary font-mono mt-1">Group: {selected.groupCode} {selected.age ? `• Age: ${selected.age}` : ''}</div>
-                  </div>
-                  <div id="selected-qr-wrapper" className="my-2 rounded-2xl bg-white p-3 shadow-soft border w-fit mx-auto">
-                    <QRCode value={selected.payload} size={180} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
-                    <Button className="w-full" variant="outline" onClick={copySelected}>
-                      <Copy className="h-4 w-4 mr-1" /> Copy
-                    </Button>
-                    <Button className="w-full" variant="outline" onClick={handleShareSelected}>
-                      <Share2 className="h-4 w-4 mr-1" /> Share
-                    </Button>
-                    <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handlePrintSelected}>
-                      <Printer className="h-4 w-4 mr-1" /> Print / <Download className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </DialogContent>
-        </Dialog>
+    
+
+<Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+  <DialogContent className="max-w-xs w-full p-0 rounded-2xl shadow-2xl">
+    <DialogHeader className="p-[7px]">
+      <DialogTitle className="flex items-center gap-2 text-lg">
+        <QrCode className="h-5 w-5" /> Member QR
+      </DialogTitle>
+    </DialogHeader>
+
+    {selected && (
+      <div ref={pdfRef}> {/* 📌 Wrap for PDF */}
+        <Card className="shadow-lg rounded-2xl border-0">
+          <CardContent className="flex flex-col items-center gap-4 p-6">
+            <img src="/src/assets/Hackathon.png" alt="Logo" className="w-40 h-auto mx-auto" /> {/* ✅ Top Image */}
+            
+            <div className="text-center">
+              <div className="font-bold text-base text-foreground">{selected.name}</div>
+              {selected.phone && <div className="text-sm text-muted-foreground">{selected.phone}</div>}
+              <div className="text-xs text-primary font-mono mt-1">
+                Group: {selected.groupCode} {selected.age ? `• Age: ${selected.age}` : ''}
+              </div>
+            </div>
+            <div id="selected-qr-wrapper" className="my-2 rounded-2xl bg-white p-3 shadow-soft border w-fit mx-auto">
+              <QRCode value={selected.payload} size={180} />
+            </div>
+            {/* 🖨️ This will also be in the PDF */}
+            <div className="grid justify-center gap-2 w-full">
+              {/* <Button variant="outline">
+                <Share2 className="h-4 w-4 mr-1" />   
+              </Button> */}
+              <Button variant="outline" onClick={handleDownloadPDF} className="no-print">
+                <Download className="h-4 w-4 mr-1" /> Download
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )}
+  </DialogContent>
+</Dialog>
+
       </div>
     </div>
   );
