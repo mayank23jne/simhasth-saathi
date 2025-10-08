@@ -3,7 +3,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
-import { Capacitor } from "@capacitor/core";
 
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
@@ -54,12 +53,6 @@ const App = () => {
     requestAppPermissions().then(({ locationGranted }) => {
       console.log("Location permission", { locationGranted });
     });
-    if (Capacitor.getPlatform() === "android") {
-      // Ensure status bar doesn't overlay the webview and has visible icons
-      StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
-      StatusBar.setBackgroundColor({ color: "#FFFFFF" }).catch(() => {});
-      StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-    }
   }, []);
 
   return (
