@@ -151,7 +151,14 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 ""
               ).toString();
               if (!userId) throw new Error("Not logged in");
-              await authService.joinExistingGroup({ userId, groupId: code });
+              await authService.joinExistingGroup({
+                userId,
+                groupId:
+                  code ||
+                  localStorage.getItem("groupCode") ||
+                  code ||
+                  localStorage.getItem("groupId"),
+              });
               try {
                 useAppStore.getState().setGroup(code);
               } catch {}

@@ -5,9 +5,11 @@ import { Card } from "@/components/ui/card";
 import { Users, Plus, UserPlus, Copy, Check, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGroup } from "@/context/GroupContext";
+import { useGroupMembers } from "@/hooks/useGroupMembers";
 import { motion, AnimatePresence } from "framer-motion";
 import QRCode from "react-qr-code";
 import { encodeQR, tryParseQR } from "@/lib/qr";
+import hackathonBadge from "@/assets/Hackathon.png";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -23,6 +25,9 @@ import { authService } from "@/services/authService";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useNavigate } from "react-router-dom";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
+import { Capacitor } from "@capacitor/core";
 
 interface GroupSetupProps {
   onGroupCreated: (groupCode: string) => void;
@@ -39,6 +44,7 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { createGroup, joinGroup } = useGroup();
+  const { refresh: refreshMembers } = useGroupMembers(groupCode);
   const [shareOpen, setShareOpen] = useState(false);
   const [isCelebrating, setIsCelebrating] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
@@ -67,38 +73,134 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
   const navigate = useNavigate();
   const [imageProcessing, setImageProcessing] = useState(false);
 
+  const blobToBase64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        const dataUrl = reader.result as string; // "data:application/pdf;base64,...."
+        const base64 = dataUrl.split(",")[1];
+        resolve(base64);
+      };
+      reader.readAsDataURL(blob);
+    });
+
   const handleDownloadPdf = async () => {
-    const element = printRef.current;
+    if (!printRef.current) return;
 
-    // Set higher scale for better quality
-    const scale = 3;
-    const margin = 40;
+    try {
+      const element = printRef.current;
 
-    // Canvas size is element size * scale
-    const canvas = await html2canvas(element, {
-      useCORS: true,
-      backgroundColor: null,
-      scale: scale,
-    });
+      // html2canvas options
+      const scale = 3;
+      const margin = 40;
 
-    const imgData = canvas.toDataURL("image/png");
-    const pdfWidth = element.offsetWidth + margin * 2;
-    const pdfHeight = element.offsetHeight + margin * 2;
+      const canvas = await html2canvas(element, {
+        useCORS: true,
+        backgroundColor: null,
+        scale,
+      });
 
-    // Adjust image size according to scale
-    const imgWidth = element.offsetWidth;
-    const imgHeight = element.offsetHeight;
+      const imgData = canvas.toDataURL("image/png");
 
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "px",
-      format: [pdfWidth, pdfHeight],
-    });
+      // calculate pdf size in px
+      const pdfWidth = element.offsetWidth + margin * 2;
+      const pdfHeight = element.offsetHeight + margin * 2;
 
-    // Shrink the image to original dimensions for PDF
-    pdf.addImage(imgData, "PNG", margin, margin, imgWidth, imgHeight);
+      // create jsPDF with the same px units (so 1 unit = 1px)
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [pdfWidth, pdfHeight],
+      });
 
-    pdf.save("group-qr-code.pdf");
+      const imgWidth = element.offsetWidth;
+      const imgHeight = element.offsetHeight;
+
+      pdf.addImage(imgData, "PNG", margin, margin, imgWidth, imgHeight);
+
+      // If running in a normal browser -> just trigger save
+      if (!Capacitor.isNativePlatform()) {
+        pdf.save("group-qr-code.pdf");
+        return;
+      }
+
+      // On native (Capacitor) -> write the PDF to filesystem and share/open it
+      // Convert pdf to blob
+      const pdfBlob: Blob = pdf.output("blob");
+
+      // Convert to base64 string
+      const base64 = await blobToBase64(pdfBlob);
+
+      // Construct filename
+      const filename = `group-qr-${Date.now()}.pdf`;
+
+      // On Android 10+ writing to public directories may require permission
+      // Try public Documents first; if it fails, fallback to app-private Data
+      let targetDirectory: Directory = Directory.Documents;
+      let fileUri: string | null = null;
+
+      try {
+        // Best-effort permissions (Android)
+        try {
+          const perm: any = await (Filesystem as any).checkPermissions?.();
+          if (perm && perm.publicStorage !== "granted") {
+            await (Filesystem as any).requestPermissions?.();
+          }
+        } catch {}
+
+        await Filesystem.writeFile({
+          path: filename,
+          data: base64,
+          directory: targetDirectory,
+        });
+        const uriResult = await Filesystem.getUri({
+          directory: targetDirectory,
+          path: filename,
+        });
+        fileUri = uriResult.uri;
+      } catch {
+        // Fallback to app private storage if Documents fails
+        targetDirectory = Directory.Data;
+        await Filesystem.writeFile({
+          path: filename,
+          data: base64,
+          directory: targetDirectory,
+        });
+        const uriResult = await Filesystem.getUri({
+          directory: targetDirectory,
+          path: filename,
+        });
+        fileUri = uriResult.uri;
+      }
+
+      // Use Share to open the PDF in a viewer or present share sheet
+      try {
+        const canShare = await Share.canShare();
+        if (canShare?.value) {
+          await Share.share({
+            title: "Group QR PDF",
+            text: "Here is the PDF",
+            url: fileUri || undefined,
+          });
+          return;
+        }
+      } catch {}
+
+      // As a last resort, just inform the user where it was saved
+      if (fileUri) {
+        toast.success(
+          `Saved to ${
+            targetDirectory === Directory.Documents ? "Documents" : "App data"
+          }`
+        );
+      } else {
+        toast.error("Failed to save PDF");
+      }
+    } catch (err) {
+      console.error("PDF download error", err);
+      toast.error("Failed to generate/download PDF");
+    }
   };
 
   const texts = {
@@ -286,10 +388,15 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
       try {
         await authService.joinExistingGroup({
           userId: localStorage.getItem("userId") || "",
-          groupId: groupCode || localStorage.getItem("groupCode"),
+          groupId:
+            groupCode ||
+            localStorage.getItem("groupCode") ||
+            localStorage.getItem("groupId"),
         });
         joinGroup(groupCode);
         onGroupCreated(groupCode);
+        // Refresh members after successfully joining
+        refreshMembers();
         toast.success("Joined group");
       } catch (err: any) {
         toast.error(err?.message || "Failed to join group");
@@ -325,6 +432,8 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
         setUserRole("member");
         joinGroup(groupCode);
         onGroupCreated(groupCode);
+        // Refresh members after successfully joining
+        refreshMembers();
         toast.success("Joined group");
       } catch (err: any) {
         toast.error(err?.message || "Failed to join group");
@@ -335,16 +444,19 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
   };
 
   const handleJoinGroupViaCode = async (code: string) => {
+    setGroupCode(code);
     console.info(code, "code 250");
     if (mode === "join") {
       try {
         console.info(mode, "mode");
         await authService.joinExistingGroup({
           userId: localStorage.getItem("userId") || "",
-          groupId: groupCode || localStorage.getItem("groupCode"),
+          groupId: code || localStorage.getItem("groupCode"),
         });
         joinGroup(groupCode);
         onGroupCreated(groupCode);
+        // Refresh members after successfully joining
+        refreshMembers();
         toast.success("Joined group");
       } catch (err: any) {
         toast.error(err?.message || "Failed to join group");
@@ -359,6 +471,8 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
     await new Promise((resolve) => setTimeout(resolve, 1000));
     joinGroup(normalized);
     onGroupCreated(normalized);
+    // Refresh members after successfully joining
+    refreshMembers();
   };
 
   const openScanner = () => {
@@ -929,11 +1043,7 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
                           }}
                         />
                         <div className="flex flex-col align-center w-100 gap-4">
-                          <img
-                            src="/src/assets/Hackathon.png"
-                            alt="Logo"
-                            width={100}
-                          />
+                          <img src={hackathonBadge} alt="Logo" width={100} />
                           <QRCode
                             value={qrRedirectURL}
                             size={160}
@@ -956,14 +1066,14 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
                         >
                           {t.downloadQR}
                         </Button>
-                        <Button
+                        {/* <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setShareOpen(true)}
                           className="w-full sm:w-auto"
                         >
                           {t.shareButton}
-                        </Button>
+                        </Button> */}
                         <Button
                           variant="outline"
                           size="sm"
@@ -993,12 +1103,12 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
                           </span>
                         )}
                       </Button>
-                      <Button
+                      {/* <Button
                         onClick={() => setShareOpen(true)}
                         className="w-full h-button bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
                         {t.shareButton}
-                      </Button>
+                      </Button> */}
                       <p className="text-xs text-muted-foreground text-center">
                         {t.shareCode}
                       </p>

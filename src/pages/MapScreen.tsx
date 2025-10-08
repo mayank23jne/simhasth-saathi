@@ -245,6 +245,10 @@ const MapScreen: React.FC = () => {
   // Frozen positions for members when movement is disabled
   const frozenMemberPosRef = useRef<Map<string, LatLng>>(new Map());
 
+  // Track user interaction to prevent auto-pan during manual exploration
+  const userInteractingRef = useRef<boolean>(false);
+  const lastInteractionTsRef = useRef<number>(0);
+
   // Geofencing for group
   const groupGeofenceCircleRef = useRef<L.Circle | null>(null);
   const geofenceCenterRef = useRef<L.LatLng | null>(null);
@@ -553,10 +557,17 @@ const MapScreen: React.FC = () => {
       return;
     }
 
-    // auto-pan only if marker is near edge (skip when user movement disabled)
+    // auto-pan only if marker is near edge AND user hasn't been interacting recently
     const bounds = map.getBounds();
     const latlng = L.latLng(userLocation.lat, userLocation.lng);
-    if (!DISABLE_USER_MOVEMENT && !bounds.pad(-0.3).contains(latlng)) {
+    const timeSinceInteraction = Date.now() - lastInteractionTsRef.current;
+    const shouldAutoPan =
+      !DISABLE_USER_MOVEMENT &&
+      !userInteractingRef.current &&
+      timeSinceInteraction > 10000 && // 10 seconds since last interaction
+      !bounds.pad(-0.3).contains(latlng);
+
+    if (shouldAutoPan) {
       map.panTo(latlng, { animate: true });
     }
   }, [userLocation, animateHeadingRotation]); // trim unused dep to avoid needless reruns
@@ -566,8 +577,10 @@ const MapScreen: React.FC = () => {
 
   // Derived stats for info panel
   const { totalCount, alertCount, safeCount, lastUpdatedTs } = useMemo(() => {
-    const total = members.length;
-    const alerts = members.reduce((acc: number, m: GroupMember) => {
+    // Exclude self from member count
+    const otherMembers = members.filter((m) => !m.isSelf);
+    const total = otherMembers.length;
+    const alerts = otherMembers.reduce((acc: number, m: GroupMember) => {
       const isAlert =
         (m as any)?.status === "alert" ||
         (m as any)?.isAlert === true ||
@@ -612,6 +625,10 @@ const MapScreen: React.FC = () => {
 
   const handleLocate = useCallback(() => {
     if (userLocation && mapRef.current) {
+      // Reset interaction flag when user explicitly wants to locate themselves
+      userInteractingRef.current = false;
+      lastInteractionTsRef.current = Date.now();
+
       mapRef.current.flyTo(
         [userLocation.lat, userLocation.lng],
         mapRef.current.getZoom()
@@ -621,6 +638,10 @@ const MapScreen: React.FC = () => {
 
   const handleFocusGroup = useCallback(() => {
     if (!mapRef.current) return;
+
+    // Reset interaction flag when user explicitly wants to focus on group
+    userInteractingRef.current = false;
+    lastInteractionTsRef.current = Date.now();
 
     const positions: [number, number][] = [];
     const candidates: { id: string; lat: number; lng: number }[] = [];
@@ -1284,14 +1305,31 @@ const MapScreen: React.FC = () => {
     };
   }, []);
 
-  // Clear selected member by clicking on the map background
+  // Clear selected member by clicking on the map background and track user interaction
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
+
     const onMapClick = () => setSelectedMember(null);
+    const onUserInteraction = () => {
+      userInteractingRef.current = true;
+      lastInteractionTsRef.current = Date.now();
+      // Reset interaction flag after 15 seconds of no activity
+      setTimeout(() => {
+        userInteractingRef.current = false;
+      }, 15000);
+    };
+
     map.on("click", onMapClick);
+    map.on("dragstart", onUserInteraction);
+    map.on("zoomstart", onUserInteraction);
+    map.on("movestart", onUserInteraction);
+
     return () => {
       map.off("click", onMapClick);
+      map.off("dragstart", onUserInteraction);
+      map.off("zoomstart", onUserInteraction);
+      map.off("movestart", onUserInteraction);
     };
   }, []);
 
@@ -2109,7 +2147,7 @@ const MapScreen: React.FC = () => {
                   {t("groupStatus")}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {members.length} {t("members")}
+                  {members.filter((m) => !m.isSelf).length} {t("members")}
                 </p>
               </div>
             </div>

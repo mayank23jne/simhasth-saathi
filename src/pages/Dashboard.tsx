@@ -40,6 +40,12 @@ const Dashboard: React.FC = () => {
 
   // Call the API whenever Dashboard loads
   useEffect(() => {
+    setTimeout(() => {
+      refreshMembers();
+    }, 2000);
+    if (localStorage.getItem("groupCode")) {
+      refreshMembers();
+    }
     if (groupCode) {
       refreshMembers();
     }
@@ -143,7 +149,8 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center gap-3 mb-3">
                 <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 <span className="text-responsive-sm font-medium text-foreground">
-                  {t("yourGroup")} • {members.length} {t("members")}
+                  {t("yourGroup")} • {members.filter((m) => !m.isSelf).length}{" "}
+                  {t("members")}
                 </span>
               </div>
 

@@ -13,6 +13,8 @@ import QRCode from "react-qr-code";
 import { toast } from "sonner";
 import { encodeQR } from "@/lib/qr";
 import { getSimpleLocation } from "@/lib/location";
+import { Share } from "@capacitor/share";
+import { Capacitor } from "@capacitor/core";
 
 interface MyQRModalProps {
   isOpen: boolean;
@@ -76,17 +78,35 @@ const MyQRModal: React.FC<MyQRModalProps> = ({ isOpen, onClose, user }) => {
   };
 
   const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
+    try {
+      // Prefer native share if available (Capacitor)
+      const canCapacitorShare = await Share.canShare()
+        .then((r) => r?.value)
+        .catch(() => false);
+      if (Capacitor?.isNativePlatform?.() || canCapacitorShare) {
+        await Share.share({
           title: "My Simhastha Saathi QR",
           text: qrData,
         });
         toast.success("QR data shared!");
+        return;
+      }
+    } catch {}
+
+    // Fallback to Web Share API if supported
+    if (typeof navigator !== "undefined" && (navigator as any).share) {
+      try {
+        await (navigator as any).share({
+          title: "My Simhastha Saathi QR",
+          text: qrData,
+        });
+        toast.success("QR data shared!");
+        return;
       } catch {}
-    } else {
-      handleCopy();
     }
+
+    // Final fallback: copy to clipboard
+    handleCopy();
   };
 
   return (

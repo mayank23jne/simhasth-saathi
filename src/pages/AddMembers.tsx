@@ -16,6 +16,9 @@ import { useGroupMembers } from '@/hooks/useGroupMembers';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 const fieldBase = "flex flex-col gap-1";
 const labelBase = "text-sm font-medium text-foreground";
@@ -284,32 +287,88 @@ const AddMembers: React.FC = () => {
 
 
   const handleDownloadPDF = async () => {
-    const input = pdfRef.current;
+    const input = pdfRef.current as any;
     if (!input) return;
-  
+
     const canvas = await html2canvas(input, {
       scale: 2,
       useCORS: true,
       ignoreElements: (el) => {
-        return el.classList?.contains('no-print');
+        return (el as HTMLElement).classList?.contains('no-print');
       },
     });
-  
+
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'pt',
       format: 'a4',
     });
-  
+
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-  
+
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`member-qr-${selected.name || 'unknown'}.pdf`);
+
+    // Web: simple save
+    if (!Capacitor.isNativePlatform()) {
+      pdf.save(`member-qr-${selected?.name || 'unknown'}.pdf`);
+      return;
+    }
+
+    try {
+      // Native: save to Filesystem and share
+      const blob: Blob = pdf.output('blob');
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject as any;
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          resolve(dataUrl.split(',')[1]);
+        };
+        reader.readAsDataURL(blob);
+      });
+
+      const filename = `member-qr-${selected?.name || 'unknown'}-${Date.now()}.pdf`;
+
+      let dir: Directory = Directory.Documents;
+      let uri: string | null = null;
+
+      try {
+        // Best-effort permission on Android
+        try {
+          const perm: any = await (Filesystem as any).checkPermissions?.();
+          if (perm && perm.publicStorage !== 'granted') {
+            await (Filesystem as any).requestPermissions?.();
+          }
+        } catch {}
+
+        await Filesystem.writeFile({ path: filename, data: base64, directory: dir });
+        const res = await Filesystem.getUri({ directory: dir, path: filename });
+        uri = res.uri;
+      } catch {
+        // Fallback to app data
+        dir = Directory.Data;
+        await Filesystem.writeFile({ path: filename, data: base64, directory: dir });
+        const res = await Filesystem.getUri({ directory: dir, path: filename });
+        uri = res.uri;
+      }
+
+      try {
+        const canShare = await Share.canShare();
+        if (canShare?.value) {
+          await Share.share({ title: 'Member QR PDF', text: selected?.name || 'Member QR', url: uri || undefined });
+          return;
+        }
+      } catch {}
+
+      toast.success(`Saved to ${dir === Directory.Documents ? 'Documents' : 'App data'}`);
+    } catch {
+      toast.error('Failed to save PDF');
+    }
   };
-  
-  
+
+
 
   return (
     <div className="min-h-screen-safe bg-gradient-to-br from-saffron-light/30 via-background to-sky-blue-light/30">
@@ -473,7 +532,7 @@ const AddMembers: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
-    
+
 
 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
   <DialogContent className="max-w-xs w-full p-0 rounded-2xl shadow-2xl">
@@ -488,7 +547,7 @@ const AddMembers: React.FC = () => {
         <Card className="shadow-lg rounded-2xl border-0">
           <CardContent className="flex flex-col items-center gap-4 p-6">
             <img src="/src/assets/Hackathon.png" alt="Logo" className="w-40 h-auto mx-auto" /> {/* ✅ Top Image */}
-            
+
             <div className="text-center">
               <div className="font-bold text-base text-foreground">{selected.name}</div>
               {selected.phone && <div className="text-sm text-muted-foreground">{selected.phone}</div>}
@@ -502,7 +561,7 @@ const AddMembers: React.FC = () => {
             {/* 🖨️ This will also be in the PDF */}
             <div className="grid justify-center gap-2 w-full">
               {/* <Button variant="outline">
-                <Share2 className="h-4 w-4 mr-1" />   
+                <Share2 className="h-4 w-4 mr-1" />
               </Button> */}
               <Button variant="outline" onClick={handleDownloadPDF} className="no-print">
                 <Download className="h-4 w-4 mr-1" /> Download

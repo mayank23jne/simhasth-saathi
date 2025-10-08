@@ -24,6 +24,7 @@ export interface GroupMember {
   isSelf?: boolean;
   headingDeg?: number;
   path?: MemberPathPoint[];
+  is_admin: any;
 }
 
 export type SosStatus = "idle" | "sent" | "responded" | "resolved";

@@ -450,13 +450,13 @@ const ProfileScreen = () => {
                     <div className="text-sm text-muted-foreground">
                       {members.length} {t("members") || "members"}
                     </div>
-                    <Button
+                    {/* <Button
                       variant="outline"
                       size="sm"
                       onClick={clearAllMembers}
                     >
                       {t("clearAll") || "Clear All"}
-                    </Button>
+                    </Button> */}
                   </div>
                   <div className="grid grid-cols-1 gap-3">
                     {members.map((m) => (
@@ -479,7 +479,7 @@ const ProfileScreen = () => {
                                 {m.phone}
                               </div>
                               <div className="text-xs text-muted-foreground truncate">
-                                ({t("group") || "Group"}: {m.groupCode}) ||
+                                {localStorage.getItem("groupCode")}
                               </div>
                             </div>
                           </div>
