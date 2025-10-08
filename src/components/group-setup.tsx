@@ -1,21 +1,28 @@
-import React, { useState, useEffect ,useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Users, Plus, UserPlus, Copy, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useGroup } from '@/context/GroupContext';
-import { motion, AnimatePresence } from 'framer-motion';
-import QRCode from 'react-qr-code';
-import { encodeQR, tryParseQR } from '@/lib/qr';
-import { toast } from 'sonner';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import simhasthaLogo from '@/assets/simhastha_logo.png';
-import BarcodeScanner from 'react-qr-barcode-scanner';
-import { useAppStore } from '@/store/appStore';
-import { authService } from '@/services/authService';
+import React, { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Users, Plus, UserPlus, Copy, Check, ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useGroup } from "@/context/GroupContext";
+import { motion, AnimatePresence } from "framer-motion";
+import QRCode from "react-qr-code";
+import { encodeQR, tryParseQR } from "@/lib/qr";
+import { toast } from "sonner";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import simhasthaLogo from "@/assets/simhastha_logo.png";
+import BarcodeScanner from "react-qr-barcode-scanner";
+import { useAppStore } from "@/store/appStore";
+import { authService } from "@/services/authService";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { useNavigate } from "react-router-dom";
 
 interface GroupSetupProps {
   onGroupCreated: (groupCode: string) => void;
@@ -44,57 +51,55 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
   );
   const [torch, setTorch] = useState(false);
   const [autoJoinTriggered, setAutoJoinTriggered] = useState(false);
-  const [qrRedirectURL, setQrRedirectURL] = useState('') 
-  const userName = useAppStore(s => s.userName) || '';
-  const userPhone = useAppStore(s => s.userPhone) || '';
-  const userAge = Number(typeof window !== 'undefined' ? localStorage.getItem('userAge') || '0' : '0') || 0;
-  const setUserRole = useAppStore(s => s.setUserRole);
-  const setUserId = useAppStore(s => s.setUserId);
+  const [qrRedirectURL, setQrRedirectURL] = useState("");
+  const userName = useAppStore((s) => s.userName) || "";
+  const userPhone = useAppStore((s) => s.userPhone) || "";
+  const userAge =
+    Number(
+      typeof window !== "undefined"
+        ? localStorage.getItem("userAge") || "0"
+        : "0"
+    ) || 0;
+  const setUserRole = useAppStore((s) => s.setUserRole);
+  const setUserId = useAppStore((s) => s.setUserId);
   const printRef = useRef();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+  const [imageProcessing, setImageProcessing] = useState(false);
 
   const handleDownloadPdf = async () => {
     const element = printRef.current;
-  
+
     // Set higher scale for better quality
     const scale = 3;
     const margin = 40;
-  
+
     // Canvas size is element size * scale
     const canvas = await html2canvas(element, {
       useCORS: true,
       backgroundColor: null,
-      scale: scale
+      scale: scale,
     });
-  
-    const imgData = canvas.toDataURL('image/png');
+
+    const imgData = canvas.toDataURL("image/png");
     const pdfWidth = element.offsetWidth + margin * 2;
     const pdfHeight = element.offsetHeight + margin * 2;
-  
+
     // Adjust image size according to scale
     const imgWidth = element.offsetWidth;
     const imgHeight = element.offsetHeight;
-  
+
     const pdf = new jsPDF({
       orientation: "portrait",
       unit: "px",
       format: [pdfWidth, pdfHeight],
     });
-  
+
     // Shrink the image to original dimensions for PDF
-    pdf.addImage(
-      imgData,
-      'PNG',
-      margin,
-      margin,
-      imgWidth,
-      imgHeight
-    );
-  
+    pdf.addImage(imgData, "PNG", margin, margin, imgWidth, imgHeight);
+
     pdf.save("group-qr-code.pdf");
   };
-  
-  
-
 
   const texts = {
     en: {
@@ -701,6 +706,17 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
   if (mode === "select") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-saffron-light via-background to-sky-blue-light flex flex-col items-center justify-center p-4">
+        {/* <div className="absolute left-3 top-3 z-10">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full h-9 w-9 shadow-none"
+            aria-label={t.back || "Back"}
+            onClick={() => navigate(location.state?.from || "/login")}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </div> */}
         <div className="w-full max-w-md space-y-6">
           <div className="text-center space-y-2">
             <div className="flex justify-center mb-4">
@@ -764,7 +780,20 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
 
   if (mode === "create") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-saffron-light via-background to-sky-blue-light flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-saffron-light via-background to-sky-blue-light flex flex-col items-center justify-center p-4 relative">
+        {/* Top-left back icon */}
+        <div className="absolute left-3 top-3 z-10">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full h-9 w-9 shadow-none"
+            aria-label={t.back || "Back"}
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </div>
+
         <div className="w-full max-w-md space-y-6">
           <div className="text-center space-y-2">
             <h1 className="text-2xl-mobile font-bold text-foreground">
@@ -880,9 +909,13 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
                     </AnimatePresence>
                   </div>
 
-                  <div  className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col items-center gap-3">
-                       <div ref={printRef} id="group-qr-code" className="relative p-4 rounded-2xl bg-white shadow-soft border overflow-hidden">
+                      <div
+                        ref={printRef}
+                        id="group-qr-code"
+                        className="relative p-4 rounded-2xl bg-white shadow-soft border overflow-hidden"
+                      >
                         <motion.div
                           className="absolute inset-0 rounded-2xl"
                           initial={{ opacity: 0.4, scale: 0.8 }}
@@ -895,9 +928,18 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
                             boxShadow: "0 0 0 8px rgba(99,102,241,0.08)",
                           }}
                         />
-                        <div  className='flex flex-col align-center w-100 gap-4'>
-                        <img src="/src/assets/Hackathon.png" alt="Logo" width={100} />
-                        <QRCode  value={qrRedirectURL} size={160} fgColor="#0F172A" bgColor="#FFFFFF" />
+                        <div className="flex flex-col align-center w-100 gap-4">
+                          <img
+                            src="/src/assets/Hackathon.png"
+                            alt="Logo"
+                            width={100}
+                          />
+                          <QRCode
+                            value={qrRedirectURL}
+                            size={160}
+                            fgColor="#0F172A"
+                            bgColor="#FFFFFF"
+                          />
                         </div>
                         {/* <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                           <div className="w-10 h-10 rounded-full bg-white border shadow grid place-items-center">
@@ -906,9 +948,30 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
                         </div> */}
                       </div>
                       <div className="flex flex-wrap items-center justify-center gap-2 w-full mt-1">
-                        <Button variant="outline" size="sm" onClick={handleDownloadPdf} className="w-full sm:w-auto">{t.downloadQR}</Button>
-                        <Button variant="outline" size="sm" onClick={() => setShareOpen(true)} className="w-full sm:w-auto">{t.shareButton}</Button>
-                        <Button variant="outline" size="sm" onClick={handleCopyLink} className="w-full sm:w-auto">{t.copyLink}</Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDownloadPdf}
+                          className="w-full sm:w-auto"
+                        >
+                          {t.downloadQR}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShareOpen(true)}
+                          className="w-full sm:w-auto"
+                        >
+                          {t.shareButton}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopyLink}
+                          className="w-full sm:w-auto"
+                        >
+                          {t.copyLink}
+                        </Button>
                       </div>
                     </div>
 
@@ -1027,7 +1090,19 @@ export const GroupSetup: React.FC<GroupSetupProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-saffron-light via-background to-sky-blue-light flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-saffron-light via-background to-sky-blue-light flex flex-col items-center justify-center p-4 relative">
+      {/* Top-left back icon */}
+      <div className="absolute left-3 top-3 z-10">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full h-9 w-9 shadow-none"
+          aria-label={t.back || "Back"}
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+      </div>
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-2xl-mobile font-bold text-foreground">

@@ -1,52 +1,56 @@
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { SuspenseFallback } from '@/components/SuspenseFallback';
-import { Login } from '@/components/login';
-const Onboarding = React.lazy(() => import('@/components/onboarding').then(m => ({ default: m.Onboarding })));
+import React, { useState, useEffect, useCallback, Suspense } from "react";
+import { useNavigate } from "react-router-dom";
+import { SuspenseFallback } from "@/components/SuspenseFallback";
+import { Login } from "@/components/login";
+const Onboarding = React.lazy(() =>
+  import("@/components/onboarding").then((m) => ({ default: m.Onboarding }))
+);
 // const Login = React.lazy(() => import('@/components/login').then(m => ({ default: m.Login })));
-const GroupSetup = React.lazy(() => import('@/components/group-setup').then(m => ({ default: m.GroupSetup })));
+const GroupSetup = React.lazy(() =>
+  import("@/components/group-setup").then((m) => ({ default: m.GroupSetup }))
+);
 
-type AppStep = 'onboarding' | 'login' | 'group-setup' | 'dashboard';
+type AppStep = "onboarding" | "login" | "group-setup" | "dashboard";
 
 const Index = () => {
   const navigate = useNavigate();
 
   // Initialize based on localStorage lazily to avoid extra reads on re-renders
   const [currentStep, setCurrentStep] = useState<AppStep>(() => {
-    const authed = !!localStorage.getItem('authToken');
-    if (!authed) return 'onboarding';
-    const groupEnabled = localStorage.getItem('groupEnabled') === 'true';
-    const hasGroupId = !!localStorage.getItem('groupId');
-    return (groupEnabled || hasGroupId) ? 'dashboard' : 'group-setup';
+    const authed = !!localStorage.getItem("authToken");
+    if (!authed) return "onboarding";
+    const groupEnabled = localStorage.getItem("groupEnabled") === "true";
+    const hasGroupId = !!localStorage.getItem("groupId");
+    return groupEnabled || hasGroupId ? "dashboard" : "group-setup";
   });
-  const [language, setLanguage] = useState('en');
+  const [language, setLanguage] = useState("en");
 
   const handleLanguageComplete = useCallback((selectedLanguage: string) => {
     setLanguage(selectedLanguage);
-    setCurrentStep('login');
+    setCurrentStep("login");
     // Skip login for now; go directly to group setup
     // setCurrentStep('group-setup');
   }, []);
 
   const handleLoginSuccess = useCallback(() => {
     // After authentication, force user through group setup before dashboard
-    setCurrentStep('group-setup');
+    setCurrentStep("group-setup");
   }, []);
 
   const handleGroupCreated = useCallback((_code: string) => {
-    localStorage.setItem('groupEnabled', 'true');
-    setCurrentStep('dashboard');
+    localStorage.setItem("groupEnabled", "true");
+    setCurrentStep("dashboard");
   }, []);
 
   // ✅ jabhi dashboard step set ho, navigate to /dashboard
   useEffect(() => {
-    if (currentStep === 'dashboard') {
-      navigate('/dashboard');
+    if (currentStep === "dashboard") {
+      navigate("/dashboard");
     }
   }, [currentStep, navigate]);
 
   switch (currentStep) {
-    case 'onboarding':
+    case "onboarding":
       return (
         <ErrorBoundary>
           <Suspense fallback={<SuspenseFallback />}>
@@ -55,26 +59,32 @@ const Index = () => {
         </ErrorBoundary>
       );
 
-    case 'login':
+    case "login":
       return (
         <ErrorBoundary>
           <Suspense fallback={<SuspenseFallback />}>
-            <Login onLoginSuccess={handleLoginSuccess} />
+            <Login
+              onLoginSuccess={handleLoginSuccess}
+              onBack={() => setCurrentStep("onboarding")}
+            />
           </Suspense>
         </ErrorBoundary>
       );
 
-    case 'group-setup':
+    case "group-setup":
       return (
         <ErrorBoundary>
           <Suspense fallback={<SuspenseFallback />}>
-            <GroupSetup onGroupCreated={handleGroupCreated} language={language} />
+            <GroupSetup
+              onGroupCreated={handleGroupCreated}
+              language={language}
+            />
           </Suspense>
         </ErrorBoundary>
       );
 
     // 👇 ye return karne ki zarurat nahi, navigate handle karega
-    case 'dashboard':
+    case "dashboard":
       return null;
 
     default:
@@ -84,7 +94,10 @@ const Index = () => {
 
 export default Index;
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
@@ -95,7 +108,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 
   componentDidCatch(error: unknown) {
-    console.error('ErrorBoundary caught:', error);
+    console.error("ErrorBoundary caught:", error);
   }
 
   render() {

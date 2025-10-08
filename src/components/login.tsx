@@ -3,7 +3,7 @@ import { useAppStore } from "@/store/appStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Phone, Shield, UserCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Phone, Shield, UserCheck } from "lucide-react";
 import { useTranslation } from "@/context/TranslationContext";
 import { authService, normalizeAuthData } from "@/services/authService";
 import { toast } from "sonner";
@@ -12,9 +12,10 @@ import { useGroupMembers } from "@/hooks/useGroupMembers";
 
 interface LoginProps {
   onLoginSuccess: () => void;
+  onBack?: () => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack }) => {
   const { t } = useTranslation(); // ✅ use context for real-time translation
   const setUserName = useAppStore((s) => s.setUserName);
   const setUserPhone = useAppStore((s) => s.setUserPhone);
@@ -196,7 +197,28 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen-safe bg-gradient-to-br from-sky-blue-light via-background to-saffron-light flex flex-col items-center justify-center p-4 sm:p-6">
+    <div className="min-h-screen-safe bg-gradient-to-br from-sky-blue-light via-background to-saffron-light flex flex-col items-center justify-center p-4 sm:p-6 relative">
+      {/* Compact top-left back icon */}
+      <div className="absolute left-3 top-3 z-10">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full h-9 w-9 shadow-none"
+          aria-label={t("back") || "Back"}
+          onClick={() => {
+            if (step === "otp") {
+              setStep("phone");
+            } else if (onBack) {
+              onBack();
+            } else {
+              navigate(-1);
+            }
+          }}
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+      </div>
+
       <div className="w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6 animate-fade-in">
         {/* Header */}
         <div className="text-center space-y-3 sm:space-y-4">

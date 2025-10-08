@@ -406,7 +406,8 @@ const ProfileScreen = () => {
 
                 <div className="p-3 rounded-lg bg-muted/50 text-center">
                   <div className="text-xs text-muted-foreground">
-                    {t("totalMembers")}
+                    {/* {t("totalMembers")} */}
+                    Group Admin
                   </div>
                   <div className="text-lg font-semibold">
                     {localStorage.getItem("userName")}
@@ -478,11 +479,11 @@ const ProfileScreen = () => {
                                 {m.phone}
                               </div>
                               <div className="text-xs text-muted-foreground truncate">
-                                {t("group") || "Group"}: {m.groupCode}
+                                ({t("group") || "Group"}: {m.groupCode}) ||
                               </div>
                             </div>
                           </div>
-                          {!m.isSelf && (
+                          {/* {!m.isSelf && (
                             <Button
                               variant="destructive"
                               size="sm"
@@ -491,7 +492,7 @@ const ProfileScreen = () => {
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                          )}
+                          )} */}
                         </CardContent>
                       </Card>
                     ))}
